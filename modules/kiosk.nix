@@ -98,6 +98,29 @@ in
       example = [ "--use-angle=vulkan" ];
       description = "Flags appended after the defaults, so they win on conflict.";
     };
+
+    diagnosticTabs = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "file:///run/tabletop/status.html" ];
+      description = ''
+        Extra tabs opened behind the launcher, in order.
+
+        The launcher is the active tab; these sit underneath it. Closing the
+        launcher with Ctrl+W reveals them rather than exiting immediately, so
+        anyone debugging by closing windows walks out through the diagnostics
+        before the kiosk restarts.
+
+        `chrome://gpu` is deliberately *not* here. Chromium silently discards
+        `chrome://` URLs passed as command-line arguments — verified: passing
+        it alongside two other URLs opens two tabs, not three, with no error.
+        Since kiosk mode also has no address bar to navigate with, that page is
+        simply unreachable on this device.
+
+        The status page asks the same question a different way: it creates a
+        WebGL context and reports the unmasked renderer, which is the number
+        that actually matters. See modules/status.nix.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -119,7 +142,11 @@ in
     services.cage = {
       enable = true;
       user = cfg.user;
-      program = "${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${lib.escapeShellArg cfg.url}";
+      # The launcher is listed first so it is the active tab; diagnosticTabs sit
+      # behind it and are revealed one Ctrl+W at a time.
+      program = "${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${
+        lib.concatMapStringsSep " " lib.escapeShellArg ([ cfg.url ] ++ cfg.diagnosticTabs)
+      }";
       environment = {
         # Chromium checks this before deciding it can use Wayland at all.
         XDG_SESSION_TYPE = "wayland";

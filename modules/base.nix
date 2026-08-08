@@ -18,8 +18,16 @@
 
   networking = {
     hostName = lib.mkDefault "tabletop";
-    # A tabletop moves between rooms and venues; NetworkManager handles roaming
-    # and stored WiFi credentials better than a static configuration.
+    # Ethernet + DHCP is the whole story today, and it is enough: the Orange Pi
+    # 5 Plus has 2x2.5GbE and *no onboard wireless* — only an empty M.2 E-key
+    # slot for an optional Wi-Fi6/BT module.
+    #
+    # There is deliberately no WiFi configuration anywhere in this repo. When
+    # the Raspberry Pi hosts land they do have onboard wireless and will need
+    # it; the plan is to read credentials from the FAT partition of the SD card
+    # at boot rather than commit a PSK to a public repository or bake one into
+    # a world-readable nix store. Until there is hardware to test against,
+    # writing that would be writing untested code.
     networkmanager.enable = true;
     firewall = {
       enable = true;

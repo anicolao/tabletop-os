@@ -20,7 +20,7 @@ Be clear about this before trusting a green run.
 | systemd ordering, network-online gating | **yes** | |
 | Users, SSH config, firewall | **yes** | |
 | Touch input mapping | partially | a QEMU tablet is absolute, not multi-touch |
-| **GPU acceleration** | **no** | llvmpipe here, panfrost on the board |
+| **GPU acceleration** | **no** | see below — WebGL does not work here at all |
 | **Bootloader / U-Boot** | **no** | |
 | **Device tree, panthor, HDMI** | **no** | |
 | **SD image layout** | **no** | |
@@ -36,9 +36,23 @@ bugs are software bugs: a wrong flag, a service ordering mistake, a launcher tha
 does not load. Those reproduce here in seconds instead of a reflash-and-reboot
 cycle.
 
-**Never read a performance number out of the VM.** Rendering is llvmpipe on the
-host CPU. `chrome://gpu` will correctly report software rendering, and that is
-expected here and a bug on the board.
+**Never read a performance number out of the VM**, and be aware that **WebGL
+does not work here at all** — the status page reports
+`webgl UNAVAILABLE — no hardware or software renderer`.
+
+That is expected, and it is worth understanding why, because it is a real
+property of the configuration rather than an emulator quirk. `modules/kiosk.nix`
+passes `--use-angle=gles-egl` to force native GLES, which is what makes WebGL
+hardware-accelerated on Mali and VideoCore. QEMU's plain `virtio-gpu` offers no
+GL at all, so ANGLE cannot initialise — and because the flag pins the backend,
+Chromium does **not** fall back to SwiftShader.
+
+The consequence to keep in mind: on real hardware, if the GPU stack fails to
+come up, WebGL will be *unavailable* rather than slow. For a project whose whole
+point is frame rate that is arguably the right failure mode — a silent drop to
+software rendering is worse than a visible failure — but it does mean a broken
+driver produces a broken launcher, not a sluggish one. The status page is how
+you tell the difference in ten seconds.
 
 ## Running it from macOS
 

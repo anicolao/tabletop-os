@@ -21,6 +21,7 @@
         ./modules/base.nix
         ./modules/kiosk.nix
         ./modules/touchscreen.nix
+        ./modules/status.nix
       ];
 
       mkSystem =
