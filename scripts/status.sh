@@ -5,7 +5,10 @@
 # keyboard and often no monitor beyond the panel itself, so "what is my IP" has
 # to be answerable from the panel.
 
-hostname_now="$(hostname 2>/dev/null || echo unknown)"
+# uname -n rather than hostname(1): it is in coreutils, so it works anywhere
+# this script is dropped without dragging in nettools. The notice script fell
+# back to a hardcoded name for exactly that reason.
+hostname_now="$(uname -n 2>/dev/null || echo unknown)"
 
 printf 'host      %s\n' "$hostname_now"
 

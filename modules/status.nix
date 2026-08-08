@@ -29,7 +29,6 @@ let
       gnused
       gawk
       procps
-      nettools
       systemd
     ];
     text = ''
@@ -136,8 +135,8 @@ let
         printf '\033[2J\033[H\033[?25l'
         printf '\033[1;36m  Tabletop kiosk is restarting\033[0m\n\n'
         tabletop-status | sed 's/^/  /'
-        printf '\n  \033[2mThe launcher will reappear in a few seconds.\033[0m\n'
-        printf '  \033[2mssh admin@%s\033[0m\n' "$(hostname 2>/dev/null || echo tabletop)"
+        printf '\n  \033[2mThe launcher returns in about %s seconds.\033[0m\n' ${toString cfg.noticeSeconds}
+        printf '  \033[2mssh admin@%s\033[0m\n' "$(uname -n 2>/dev/null || echo tabletop)"
       } > "$tty" 2>/dev/null || true
     '';
   };
@@ -152,6 +151,22 @@ in
       type = lib.types.int;
       default = 10;
       description = "How often the in-browser status page reloads itself.";
+    };
+
+    noticeSeconds = lib.mkOption {
+      type = lib.types.int;
+      default = 20;
+      description = ''
+        How long the console notice stays on screen before the kiosk restarts.
+
+        This is the kiosk's restart delay, and the notice is readable for
+        exactly that long. The default of 5s was not enough time to read an
+        address off the panel and type it somewhere.
+
+        Note this also delays recovery from a genuine browser crash, not just
+        from someone closing the window deliberately. Twenty seconds is a
+        compromise; lower it if unattended uptime matters more than legibility.
+      '';
     };
   };
 
@@ -181,8 +196,21 @@ in
       };
     };
 
-    # `+` runs this as root regardless of the unit's User=kiosk, which is what
-    # it takes to write to the console after the session has been torn down.
-    systemd.services.cage-tty1.serviceConfig.ExecStopPost = [ "+${lib.getExe restartNotice}" ];
+    systemd.services.cage-tty1.serviceConfig = {
+      # `+` runs this as root regardless of the unit's User=kiosk, which is what
+      # it takes to write to the console after the session has been torn down.
+      ExecStopPost = [ "+${lib.getExe restartNotice}" ];
+
+      # The notice is only readable during the restart delay, so that delay is
+      # the feature rather than an inconvenience.
+      RestartSec = cfg.noticeSeconds;
+
+      # The NixOS cage module sets this to yes, which makes systemd deallocate
+      # the virtual console *before every start*. That is what was wiping the
+      # notice partway through reading it: the text appeared, then the restart
+      # cleared it. With this off, the notice survives until cage actually
+      # paints over it.
+      TTYVTDisallocate = lib.mkForce false;
+    };
   };
 }

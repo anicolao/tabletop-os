@@ -172,7 +172,9 @@ in
       wants = [ "network-online.target" ];
       serviceConfig = {
         Restart = "always";
-        RestartSec = 5;
+        # mkDefault so modules/status.nix can stretch the gap: that pause is
+        # when the on-console status notice is readable.
+        RestartSec = lib.mkDefault 5;
       };
     };
 
