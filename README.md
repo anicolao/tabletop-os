@@ -86,6 +86,22 @@ producing an image nobody can reach.
 - [ttlauncher](https://github.com/anicolao/ttlauncher) — the launcher this kiosk
   displays. Served over the network rather than embedded, so it can be updated
   by pushing to its own repository without rebuilding or reflashing anything.
-- `nix-tabletop`, `tabletop-image` — earlier RPi4-only attempts, superseded.
-  See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what was learned from
-  them and why neither was revived.
+- [nix-tabletop](https://github.com/anicolao/nix-tabletop) and
+  [tabletop-image](https://github.com/anicolao/tabletop-image) — earlier
+  RPi4-only attempts, now archived. This repository is the authoritative source
+  of tabletop images. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what
+  was learned from them and why neither was revived.
+
+## License
+
+Copyright (C) 2026 Alex Nicolaou
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the [GNU General Public License](LICENSE) for more
+details.
