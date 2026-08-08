@@ -122,5 +122,17 @@
       "flakes"
     ];
     auto-optimise-store = true;
+
+    # Required for `nixos-rebuild --target-host`. Without this the board
+    # refuses locally-built paths with "lacks a signature by a trusted key" —
+    # packages fetched from cache.nixos.org carry signatures and copy fine, but
+    # anything built on the laptop (system-path, the closure itself) does not.
+    #
+    # No escalation: these accounts already have passwordless sudo, so being
+    # able to insert store paths grants nothing they could not already do.
+    trusted-users = [
+      "root"
+      "@wheel"
+    ];
   };
 }

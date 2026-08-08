@@ -92,6 +92,63 @@ swap beyond zram.
 The matching public key is already in `admin-keys.nix`, so this works without
 reflashing.
 
+## Deploying to a running board without reflashing
+
+Once a board is up, config changes do not need a new card:
+
+```sh
+nix run nixpkgs#nixos-rebuild -- switch --flake .#opi5plus \
+  --target-host admin@tabletop-opi5plus --sudo
+```
+
+This builds on the linux-builder, copies the closure over SSH and activates.
+NixOS keeps the previous generation, so `nixos-rebuild --rollback` (or picking
+the old entry at boot) undoes it. Activation does not restart the kiosk unless
+something it depends on changed — verified: `cage-tty1` stayed up with its
+renderers intact across a switch.
+
+### Bootstrapping trust on a freshly flashed card
+
+The first deploy to a new card fails partway:
+
+```
+error: cannot add path '/nix/store/...-system-path' because it lacks a
+signature by a trusted key
+```
+
+Packages fetched from cache.nixos.org carry signatures and copy fine; anything
+built locally does not, and the board's daemon rejects unsigned paths from a
+user that is not in `trusted-users`. `modules/base.nix` now sets
+`trusted-users = [ "root" "@wheel" ]`, but a card flashed before that change
+cannot receive the very config that fixes it.
+
+`--no-check-sigs` does **not** help — it is a client-side flag, and the
+enforcement happens in the daemon on the board.
+
+Break the loop by importing as root, which is always trusted:
+
+```sh
+T=$(nix build --no-link --print-out-paths .#toplevel)
+
+# only the paths the board is missing — typically a handful of megabytes
+nix-store -qR "$T" > closure.txt
+ssh admin@tabletop-opi5plus 'while read -r p; do [ -e "$p" ] || echo "$p"; done' \
+  < closure.txt > missing.txt
+
+nix-store --export $(cat missing.txt) \
+  | ssh admin@tabletop-opi5plus 'sudo nix-store --import'
+
+ssh admin@tabletop-opi5plus \
+  "sudo nix-env -p /nix/var/nix/profiles/system --set $T && \
+   sudo $T/bin/switch-to-configuration switch"
+```
+
+After that one activation, `nixos-rebuild --target-host` works normally.
+
+Granting `@wheel` trust is not an escalation here: those accounts already have
+passwordless sudo, so inserting store paths grants nothing they could not
+already do.
+
 ## Caches
 
 Only `cache.nixos.org` is configured. Mainline kernels and U-Boot for this board
