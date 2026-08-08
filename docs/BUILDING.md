@@ -64,10 +64,15 @@ module seems to be missing, check `boot.kernelModules` and the device tree first
 
 ## A second, genuinely additive builder
 
-The Orange Pi 5 Plus is 8 native cores and 16 GiB with a real store and no
-virtualisation overhead. Once a board is running, it is a better second builder
-than anything else available, because it is *additional* hardware rather than a
-subdivision of the laptop.
+The Orange Pi 5 Plus is 8 native cores with a real store and no virtualisation
+overhead. Once a board is running, it is a better second builder than anything
+else available, because it is *additional* hardware rather than a subdivision of
+the laptop.
+
+Check the RAM before leaning on it: the board here reports **8 GB**, not the
+16 GB variant, which makes `max-jobs = 8` roughly one job per gigabyte. That is
+fine for ordinary derivations and tight for large link steps, and there is no
+swap beyond zram.
 
 `nix-darwin-config/flake.nix` already reads an optional `build-machines.nix`:
 

@@ -98,8 +98,10 @@
     };
   };
 
-  # 16 GiB of RAM and 8 cores make this a credible aarch64-linux build machine
-  # in its own right — see docs/BUILDING.md.
+  # 8 cores make this a credible aarch64-linux build machine in its own right —
+  # see docs/BUILDING.md. Measured on the actual board: 8 GB of RAM, so this is
+  # one job per core with roughly 1 GB each. Lower it if a big link step starts
+  # getting OOM-killed; there is no swap here beyond zram.
   nix.settings.max-jobs = lib.mkDefault 8;
 
   sdImage = {
