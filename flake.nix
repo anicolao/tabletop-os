@@ -38,23 +38,37 @@
           specialArgs = { hostPkgs = nixpkgs.legacyPackages.${hostSystem}; };
           modules = sharedModules ++ [ ./hosts/vm.nix ];
         };
+
+      opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
+
+      image = opi5plus.config.system.build.sdImage;
+      # The kiosk system itself, without the SD card wrapper. Useful for
+      # inspecting the closure without building a multi-gigabyte image.
+      toplevel = opi5plus.config.system.build.toplevel;
+
+      # `image` and `toplevel` are aarch64-linux derivations, but they are
+      # almost always built *from* the laptop, where `nix build .#image`
+      # resolves against packages.aarch64-darwin. Exposing them under both
+      # systems means the documented command works from either machine; Nix
+      # dispatches the actual build to the aarch64-linux builder regardless.
+      commonPackages = {
+        inherit image toplevel;
+        default = image;
+      };
     in
     {
       nixosConfigurations = {
-        opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
+        inherit opi5plus;
         vm = mkVm target;
       };
 
-      packages.${target} = {
-        default = self.nixosConfigurations.opi5plus.config.system.build.sdImage;
-        image = self.nixosConfigurations.opi5plus.config.system.build.sdImage;
-        # The kiosk system itself, without the SD card wrapper. Useful for
-        # inspecting the closure without building a multi-gigabyte image.
-        toplevel = self.nixosConfigurations.opi5plus.config.system.build.toplevel;
+      packages.${target} = commonPackages // {
         vm = (mkVm target).config.system.build.vm;
       };
 
-      packages.aarch64-darwin.vm = (mkVm "aarch64-darwin").config.system.build.vm;
+      packages.aarch64-darwin = commonPackages // {
+        vm = (mkVm "aarch64-darwin").config.system.build.vm;
+      };
 
       apps.${target}.vm = {
         type = "app";
