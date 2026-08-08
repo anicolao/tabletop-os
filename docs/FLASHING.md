@@ -114,6 +114,60 @@ A dark screen with a healthy `cage-tty1` is a display-pipeline problem
 (step 3). See
 [ARCHITECTURE.md](ARCHITECTURE.md#verifying-acceleration--the-one-check-that-matters).
 
+## Serial: which UART to use
+
+The board exposes two UARTs, and picking the wrong one wastes an evening.
+
+```
+ttyS2 = feb50000.serial = uart2   gpio0-13, gpio0-14   debug UART
+ttyS0 = febc0000.serial = uart9   gpio2-18, gpio2-20   free
+```
+
+(Read off the running board with
+`grep uart /sys/kernel/debug/pinctrl/*/pinmux-pins`.)
+
+**`ttyS2` is the RK3588 debug UART and is already spoken for** — it carries the
+kernel console at **1500000** baud *and* runs a `serial-getty`. Attach another
+device there and it receives boot logs and a login prompt, while anything it
+sends is typed into a shell.
+
+**Use `/dev/ttyS0` for talking to other hardware.** It is registered, has no
+console, no getty, and nothing holds it open.
+
+`gpio2-18` and `gpio2-20` are **GPIO2_C2** and **GPIO2_C4**. Confirm which
+physical header pins those are against the Orange Pi pinout before wiring — the
+40-pin header is *physically* Raspberry Pi compatible (same power and ground
+positions, a Pi ribbon fits) but the **GPIO functions are not the Pi's**, so
+pins 8/10 are not necessarily UART here.
+
+Wiring to another 3.3V board — a Pi, say — needs no level shifter, but needs
+three wires, not two:
+
+```
+TX  →  RX
+RX  →  TX
+GND →  GND      mandatory; without a shared reference you get silence or garbage
+```
+
+Do **not** connect 5V or 3.3V between two independently powered boards.
+
+### Reaching the UART from your laptop
+
+`socat` is installed. Rather than opening a firewall port, tunnel over SSH —
+`networking.firewall` only allows 22, so a plain TCP listener would be blocked
+anyway:
+
+```sh
+# on the board
+socat TCP-LISTEN:4000,bind=127.0.0.1,reuseaddr,fork /dev/ttyS0,raw,echo=0,b115200
+
+# on the laptop
+ssh -L 4000:localhost:4000 admin@tabletop-opi5plus
+socat -,raw,echo=0 TCP:localhost:4000
+```
+
+For interactive use directly on the board, `picocom -b 115200 /dev/ttyS0`.
+
 ## Booting from NVMe later
 
 The M.2 slot works and the required modules are already in

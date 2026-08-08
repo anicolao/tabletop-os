@@ -81,6 +81,17 @@
     vulkan-tools
     wayland-utils
     evtest
+
+    # Serial and USB work. The touch panel is driven by a separate box over
+    # UART, and the panel itself is a non-HID USB device, so both buses need
+    # to be inspectable from here.
+    #
+    # Use /dev/ttyS0 (uart9) for that link — NOT ttyS2, which is the RK3588
+    # debug UART carrying the kernel console and a live getty.
+    picocom
+    socat
+    usbutils
+    psmisc # fuser, for finding what already holds a tty
   ];
 
   # These boards run from flash with no swap partition. zram buys headroom
