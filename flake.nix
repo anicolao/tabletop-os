@@ -39,6 +39,17 @@
           modules = sharedModules ++ [ ./hosts/vm.nix ];
         };
 
+      vmApp =
+        hostSystem:
+        let
+          cfg = mkVm hostSystem;
+        in
+        {
+          type = "app";
+          program = "${cfg.config.system.build.vm}/bin/run-${cfg.config.system.name}-vm";
+          meta.description = "Boot the tabletop kiosk in QEMU";
+        };
+
       opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
 
       image = opi5plus.config.system.build.sdImage;
@@ -70,15 +81,11 @@
         vm = (mkVm "aarch64-darwin").config.system.build.vm;
       };
 
-      apps.${target}.vm = {
-        type = "app";
-        program = "${(mkVm target).config.system.build.vm}/bin/run-tabletop-vm";
-      };
-
-      apps.aarch64-darwin.vm = {
-        type = "app";
-        program = "${(mkVm "aarch64-darwin").config.system.build.vm}/bin/run-tabletop-vm";
-      };
+      # The runner is named run-${system.name}-vm, so derive the path from the
+      # configuration rather than hardcoding it — otherwise renaming the host
+      # silently breaks `nix run .#vm`.
+      apps.${target}.vm = vmApp target;
+      apps.aarch64-darwin.vm = vmApp "aarch64-darwin";
 
       formatter.aarch64-darwin = nixpkgs.legacyPackages.aarch64-darwin.nixfmt-rfc-style;
       formatter.${target} = nixpkgs.legacyPackages.${target}.nixfmt-rfc-style;

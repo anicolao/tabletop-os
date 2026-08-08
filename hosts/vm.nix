@@ -41,15 +41,25 @@
     # Open a window. The entire point is watching the launcher come up.
     graphics = true;
 
+    # `ssh -p 2222 admin@localhost` reaches the guest, which is how you inspect
+    # `systemctl status cage-tty1` and `journalctl` without fighting the
+    # graphical console.
+    forwardPorts = [
+      {
+        from = "host";
+        host.port = 2222;
+        guest.port = 22;
+      }
+    ];
+
+    # qemu-vm.nix already supplies usb-ehci, usb-kbd and usb-tablet when
+    # graphics is on, so only the GPU needs adding. A tablet gives absolute
+    # pointer coordinates, which is the closest QEMU gets to touch input.
     qemu.options = [
-      # virtio-gpu with virgl gives the guest a real DRM device, which is what
-      # cage needs to start at all. Rendering is host-side GL rather than a
-      # Mali, so treat any performance number from here as meaningless.
+      # virtio-gpu gives the guest a real DRM device, which is what cage needs
+      # to start at all. Rendering is host-side rather than a Mali, so treat any
+      # performance number from here as meaningless.
       "-device virtio-gpu-pci"
-      # A tablet rather than a mouse, so pointer coordinates are absolute and
-      # behave like touch input.
-      "-device usb-tablet"
-      "-device qemu-xhci"
     ];
   };
 

@@ -56,13 +56,47 @@ produce an `aarch64-linux` script the Mac cannot execute.
 On Apple Silicon the guest runs **natively under HVF**, so it is genuinely fast —
 no instruction emulation, since both host and guest are aarch64.
 
-## Disk state
+## Inspecting a running VM
 
-The VM writes a `tabletop-vm.qcow2` in the current directory and reuses it
-across runs, so browser profile state survives. Delete it for a clean boot:
+Port 2222 on the host forwards to the guest's SSH. This is far easier than
+fighting the graphical console:
 
 ```sh
-rm -f tabletop-vm.qcow2 && nix run .#vm
+ssh -p 2222 admin@localhost
+
+systemctl status cage-tty1        # is the compositor up?
+pgrep -af "type=renderer"         # one per loaded page — zero means no page
+sudo journalctl -u cage-tty1 -b
+curl -sS -o /dev/null -w '%{http_code}\n' https://anicolao.github.io/ttlauncher/
+```
+
+Your key from `admin-keys.nix` works; the VM also accepts the password
+`tabletop`.
+
+## Screenshots
+
+The runner takes QEMU arguments after `--`, so a monitor socket gets you a
+framebuffer capture without a display:
+
+```sh
+nix run .#vm -- -display none -monitor unix:mon.sock,server,nowait
+```
+
+The runner `cd`s into a fresh `nix-vm.XXXX` temp directory, so `mon.sock` lands
+*there*, not where you launched from — find it with
+`lsof -a -p $(pgrep -f qemu-system-aarch64) -d cwd`. Then `screendump
+/path/to/shot.ppm` on the monitor socket.
+
+## Disk state
+
+The VM writes `tabletop-vm.qcow2` into the directory you launch from — that path
+is resolved before the runner changes directory, so it is the launch cwd and not
+the temp directory. It is reused across runs, so browser profile state survives
+and a second boot is noticeably faster.
+
+```sh
+rm -f tabletop-vm.qcow2 && nix run .#vm     # clean boot
+NIX_DISK_IMAGE=/tmp/scratch.qcow2 nix run .#vm   # or put it elsewhere
 ```
 
 ## Headless
