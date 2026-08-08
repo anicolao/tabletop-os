@@ -6,27 +6,42 @@ Check `admin-keys.nix`. Those keys are the **only** way into a flashed board:
 `users.mutableUsers = false` and no password is set anywhere. There is no
 runtime way to add a key — it takes a rebuild and a reflash.
 
-## Build
+## Write the card
+
+```sh
+nix run .#burn -- --list             # find the card
+nix run .#burn -- --sd /dev/rdisk4
+```
+
+This builds the image if needed, then refuses to continue unless the target is
+a **removable whole disk** that is **not the disk this machine booted from** and
+is **at least as large as the image**. It prints what it found and makes you
+type the device path again before it writes anything. Then it unmounts, `dd`s
+with sudo, syncs and ejects.
+
+It rejects partitions (`/dev/disk4s1`), typos (`/dev/rdsik4`), internal disks,
+and warns if the target is over 512 GB — far too large for an SD card and a good
+sign it is an external SSD holding something you want.
+
+Prefer `/dev/rdiskN` over `/dev/diskN`; the raw device is several times faster,
+and the script uses it automatically if you pass the buffered one.
+
+### Doing it by hand
+
+If you would rather not trust a script with `dd`:
 
 ```sh
 nix build .#image
-ls -lh result/sd-image/
-```
-
-## Write the card
-
-On macOS, find the disk first and read the output carefully — picking the wrong
-device destroys it.
-
-```sh
 diskutil list                       # identify the card, e.g. /dev/disk4
 diskutil unmountDisk /dev/disk4
-
-# rdisk4, not disk4: the raw device is dramatically faster
 sudo dd if=result/sd-image/*.img of=/dev/rdisk4 bs=4m status=progress
 sync
 diskutil eject /dev/disk4
 ```
+
+Read `diskutil list` carefully. Device numbers change when you plug things in,
+and the number that was right yesterday is the usual way people erase the wrong
+disk.
 
 ## Image layout
 

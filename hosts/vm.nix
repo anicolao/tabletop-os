@@ -84,7 +84,11 @@ in
         #
         # xres/yres set the mode virtio-gpu advertises; without them you get the
         # 1280x800 default.
-        "-device virtio-gpu-pci,xres=${toString cfg.width},yres=${toString cfg.height}"
+        #
+        # id=gpu0 is load-bearing: scripts/run-vm.sh overrides the resolution at
+        # runtime with `-set device.gpu0.xres=...`, which fails outright with
+        # "there is no device gpu0 defined" if the id is missing.
+        "-device virtio-gpu-pci,id=gpu0,xres=${toString cfg.width},yres=${toString cfg.height}"
       ];
     };
 

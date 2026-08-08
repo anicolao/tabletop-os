@@ -58,24 +58,38 @@ no instruction emulation, since both host and guest are aarch64.
 
 ## Display resolution
 
-virtio-gpu's own default is **1280x800**, which is too cramped to judge a
-tabletop layout. `hosts/vm.nix` overrides it:
-
-```nix
-tabletop.vm.width  = 1920;   # default
-tabletop.vm.height = 1080;
-```
-
-The emulated panel also advertises larger modes — `5120x2160` and `4096x2160`
-are both offered — so if the real tabletop panel is bigger than 1080p, set these
-to match it rather than judging layout at the wrong aspect ratio. Check what the
-guest is actually using:
+virtio-gpu's own default is **1280x800**, too cramped to judge a tabletop
+layout. The default here is 1920x1080, and it is a runtime flag — no rebuild:
 
 ```sh
-ssh -p 2222 admin@localhost 'cat /sys/class/drm/card0-Virtual-1/modes | head -3'
+nix run .#vm -- --resolution 3840x2160
+nix run .#vm -- -r 1280x800
+```
+
+Change the default in `hosts/vm.nix` via `tabletop.vm.width` / `.height`.
+
+The launcher is laid out radially for players on all four sides, so it is
+sensitive to aspect ratio. Set this to match the real panel before drawing any
+conclusion about spacing.
+
+Verify the guest actually took the mode — the QEMU argument being accepted is
+not the same as the mode being used:
+
+```sh
+ssh -p 2222 admin@localhost 'head -3 /sys/class/drm/card0-Virtual-1/modes'
 ```
 
 The first line is the mode in use.
+
+### How the override works
+
+`hosts/vm.nix` bakes `-device virtio-gpu-pci,id=gpu0,xres=…,yres=…`, and
+`scripts/run-vm.sh` appends `-set device.gpu0.xres=…`. Passing a second
+`-device` would add a second GPU rather than reconfigure the first, which is why
+it is done this way.
+
+**`id=gpu0` is load-bearing.** Without it, `-set` fails with `there is no device
+"gpu0" defined` and the VM refuses to start.
 
 ## Inspecting a running VM
 

@@ -27,12 +27,15 @@ time, not image size. Where those trade against each other, frames win.
 ```sh
 # Boot the kiosk in an emulator, no hardware needed
 nix run .#vm
+nix run .#vm -- --resolution 3840x2160     # match your real panel
 
-# Build the SD card image and print where it is and how to flash it
+# Write the image to an SD card, with safety checks and a confirmation prompt
+nix run .#burn -- --list                   # find the card
+nix run .#burn -- --sd /dev/rdisk4
+
+# Build the image and print where it is
 nix run .#image
-
-# Same image, but leave a ./result symlink
-nix build .#image
+nix build .#image                          # same, but leaves ./result
 
 # Inspect the system closure without building a multi-gigabyte image
 nix build .#toplevel

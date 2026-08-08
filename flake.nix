@@ -13,6 +13,8 @@
       # which is why the emulator is exposed for both below.
       target = "aarch64-linux";
 
+      lib = nixpkgs.lib;
+
       # Everything above the DRM device. The boards share this entirely; they
       # share nothing below it, which is why hardware lives in hosts/.
       sharedModules = [
@@ -72,15 +74,54 @@
           meta.description = "Build the SD image and print how to flash it";
         };
 
+      # Wrapped rather than pointed at directly, so display resolution is a
+      # runtime flag instead of something you have to rebuild to change.
       vmApp =
         hostSystem:
         let
+          hp = nixpkgs.legacyPackages.${hostSystem};
           cfg = mkVm hostSystem;
+          runner = "${cfg.config.system.build.vm}/bin/run-${cfg.config.system.name}-vm";
+          script = hp.writeShellApplication {
+            name = "tabletop-vm";
+            runtimeInputs = [ hp.gnugrep ];
+            text = ''
+              TABLETOP_VM_RUNNER=${lib.escapeShellArg runner}
+              TABLETOP_VM_DEFAULT_RES=${
+                lib.escapeShellArg "${toString cfg.config.tabletop.vm.width}x${toString cfg.config.tabletop.vm.height}"
+              }
+            ''
+            + builtins.readFile ./scripts/run-vm.sh;
+          };
         in
         {
           type = "app";
-          program = "${cfg.config.system.build.vm}/bin/run-${cfg.config.system.name}-vm";
+          program = "${script}/bin/tabletop-vm";
           meta.description = "Boot the tabletop kiosk in QEMU";
+        };
+
+      burnApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-burn";
+            runtimeInputs = with hp; [
+              coreutils
+              gnugrep
+              gnused
+              gawk
+            ];
+            text = ''
+              TABLETOP_IMAGE_DIR=${image}
+            ''
+            + builtins.readFile ./scripts/burn.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-burn";
+          meta.description = "Write the SD image to a card, with safety checks";
         };
 
       opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
@@ -120,10 +161,12 @@
       apps.${target} = {
         vm = vmApp target;
         image = imageApp target;
+        burn = burnApp target;
       };
       apps.aarch64-darwin = {
         vm = vmApp "aarch64-darwin";
         image = imageApp "aarch64-darwin";
+        burn = burnApp "aarch64-darwin";
       };
 
       formatter.aarch64-darwin = nixpkgs.legacyPackages.aarch64-darwin.nixfmt-rfc-style;
