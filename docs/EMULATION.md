@@ -20,7 +20,8 @@ Be clear about this before trusting a green run.
 | systemd ordering, network-online gating | **yes** | |
 | Users, SSH config, firewall | **yes** | |
 | Touch input mapping | partially | a QEMU tablet is absolute, not multi-touch |
-| **GPU acceleration** | **no** | see below — WebGL does not work here at all |
+| WebGL content runs | **yes** | in software — see below. No perf numbers. |
+| **GPU acceleration** | **no** | SwiftShader here, Panfrost on the board |
 | **Bootloader / U-Boot** | **no** | |
 | **Device tree, panthor, HDMI** | **no** | |
 | **SD image layout** | **no** | |
@@ -36,23 +37,42 @@ bugs are software bugs: a wrong flag, a service ordering mistake, a launcher tha
 does not load. Those reproduce here in seconds instead of a reflash-and-reboot
 cycle.
 
-**Never read a performance number out of the VM**, and be aware that **WebGL
-does not work here at all** — the status page reports
-`webgl UNAVAILABLE — no hardware or software renderer`.
+## WebGL in the emulator
 
-That is expected, and it is worth understanding why, because it is a real
-property of the configuration rather than an emulator quirk. `modules/kiosk.nix`
-passes `--use-angle=gles-egl` to force native GLES, which is what makes WebGL
-hardware-accelerated on Mali and VideoCore. QEMU's plain `virtio-gpu` offers no
-GL at all, so ANGLE cannot initialise — and because the flag pins the backend,
-Chromium does **not** fall back to SwiftShader.
+WebGL **works** here, in software. The status page reports something like:
 
-The consequence to keep in mind: on real hardware, if the GPU stack fails to
-come up, WebGL will be *unavailable* rather than slow. For a project whose whole
-point is frame rate that is arguably the right failure mode — a silent drop to
-software rendering is worse than a visible failure — but it does mean a broken
-driver produces a broken launcher, not a sluggish one. The status page is how
-you tell the difference in ten seconds.
+```
+version   webgl2  WebGL 2.0 (OpenGL ES 3.0 Chromium)
+renderer  ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0)), SwiftShader driver)
+texture   max 8192px
+
+SOFTWARE RENDERING — expected in the emulator, a bug on the board.
+```
+
+That is enough to develop and test WebGL content without hardware. **Never read
+a performance number out of it** — every triangle is drawn on the host CPU.
+
+### Why it is software, and why that differs from the board
+
+Accelerated 3D is not available here at all. The QEMU in nixpkgs for
+`aarch64-darwin` has no `virtio-gpu-gl-pci` device and no virglrenderer linked
+in, so there is no virgl path to enable. This was checked rather than assumed:
+
+```sh
+qemu-system-aarch64 -device help | grep virtio-gpu   # only virtio-gpu-pci
+```
+
+The board pins `--use-angle=gles-egl`, so if its GPU stack fails to come up
+WebGL is *unavailable* rather than slow. That is deliberate: for a project whose
+whole point is frame rate, a silent drop to CPU rendering hides the failure,
+while a visible failure gets fixed. `hosts/vm.nix` overrides
+`tabletop.kiosk.angleBackend = "swiftshader"` so that strictness does not make
+the emulator useless for the thing the launcher is mostly made of.
+
+Recent Chromium also refuses SwiftShader for WebGL unless
+`--enable-unsafe-swiftshader` is passed, which the VM adds. Neither the backend
+override nor that flag reaches the board — verified by grepping the generated
+`cage-tty1.service` for the image, which still shows `use-angle=gles-egl` alone.
 
 ## Running it from macOS
 

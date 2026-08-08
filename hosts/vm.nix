@@ -92,10 +92,26 @@ in
       ];
     };
 
-    # There is no panthor here and no Mali firmware to load. Chromium will fall
-    # back to software rendering via llvmpipe; that is expected in the VM and a
-    # bug on the board.
     hardware.graphics.enable = true;
+
+    # There is no GPU here at all. This QEMU build has no virtio-gpu-gl-pci
+    # device and no virglrenderer linked in, so accelerated 3D in the emulator
+    # is not merely slow, it is unavailable — checked, not assumed.
+    #
+    # The board pins ANGLE to native GLES so that a broken driver fails loudly
+    # rather than quietly rendering on the CPU. Applying that here would leave
+    # the emulator with no WebGL whatsoever, which makes it useless for testing
+    # the very thing the launcher is built out of. So the VM, and only the VM,
+    # renders WebGL in software.
+    #
+    # Anything measured here is therefore meaningless as a performance number.
+    # It tells you the code runs, not how fast.
+    tabletop.kiosk = {
+      angleBackend = "swiftshader";
+      # Recent Chromium refuses to use SwiftShader for WebGL without this,
+      # falling back to no context at all.
+      extraChromiumFlags = [ "--enable-unsafe-swiftshader" ];
+    };
 
     # The image writes extlinux for U-Boot; the VM boots straight into the
     # kernel, so it needs a bootloader that qemu-vm understands.

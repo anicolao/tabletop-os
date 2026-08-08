@@ -26,10 +26,15 @@ let
     # Talk to the compositor directly rather than through XWayland.
     "--ozone-platform=wayland"
 
-    # Native GLES through ANGLE. This is the path that makes WebGL
-    # hardware-accelerated on Mali and VideoCore alike. (The older
+    # Which ANGLE backend to use. `gles-egl` is native GLES, the path that
+    # makes WebGL hardware-accelerated on Mali and VideoCore alike. (The older
     # `--use-gl=egl` spelling is deprecated and now ignored.)
-    "--use-angle=gles-egl"
+    #
+    # Pinning this means a failed GPU stack yields *no* WebGL rather than a
+    # silent drop to software — deliberate on hardware, where slow-but-working
+    # would hide the failure. The emulator overrides it, because QEMU on macOS
+    # offers no accelerated 3D at all.
+    "--use-angle=${cfg.angleBackend}"
 
     # --- performance ---
 
@@ -92,10 +97,30 @@ in
       '';
     };
 
+    angleBackend = lib.mkOption {
+      type = lib.types.str;
+      default = "gles-egl";
+      example = "swiftshader";
+      description = ''
+        ANGLE backend passed as `--use-angle=`.
+
+        `gles-egl` is native GLES and is what makes WebGL hardware-accelerated
+        on Mali (Panfrost) and VideoCore (V3D). `vulkan` is worth benchmarking
+        on RK3588 once PanVK is trusted. `swiftshader` is CPU rendering — only
+        appropriate where there is no GPU at all, which in practice means the
+        emulator.
+
+        A separate option rather than something to override through
+        extraChromiumFlags, because relying on a later duplicate `--use-angle`
+        beating an earlier one is an undocumented Chromium behaviour to build
+        on.
+      '';
+    };
+
     extraChromiumFlags = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
-      example = [ "--use-angle=vulkan" ];
+      example = [ "--enable-unsafe-swiftshader" ];
       description = "Flags appended after the defaults, so they win on conflict.";
     };
 
