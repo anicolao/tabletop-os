@@ -46,8 +46,28 @@ img_bytes="$(wc -c <"$img" | tr -d ' ')"
 list_disks() {
   case "$os" in
     Darwin)
-      echo "Removable / external whole disks:"
-      diskutil list external physical 2>/dev/null || echo "  (none found)"
+      # NOT `diskutil list external physical`. A Mac's built-in SD slot reports
+      # Internal=Yes, so the card you actually want is excluded by that filter —
+      # it prints nothing while the card sits there writable. Enumerate whole
+      # disks instead and keep anything ejectable or holding removable media,
+      # minus the disk we booted from.
+      echo "Removable whole disks:"
+      boot_id="$(diskutil info -plist / 2>/dev/null | plutil -extract ParentWholeDisk raw -o - - 2>/dev/null || echo '')"
+      found=0
+      ids="$(diskutil list -plist physical 2>/dev/null |
+        plutil -extract WholeDisks json -o - - 2>/dev/null |
+        tr -d '[]"' | tr ',' '\n')"
+      for id in $ids; do
+        [ -n "$id" ] || continue
+        [ "$id" = "$boot_id" ] && continue
+        info="$(diskutil info -plist "/dev/$id" 2>/dev/null)" || continue
+        get() { printf '%s' "$info" | plutil -extract "$1" raw -o - - 2>/dev/null || echo "$2"; }
+        [ "$(get Ejectable false)" = "true" ] || [ "$(get RemovableMedia false)" = "true" ] || continue
+        printf '  /dev/r%-7s %s, %s\n' "$id" "$(get MediaName '?')" \
+          "$(get TotalSize 0 | awk '{printf "%.1f GB", $1/1000000000}')"
+        found=1
+      done
+      [ "$found" = "1" ] || echo "  (none found — is a card inserted?)"
       ;;
     Linux)
       echo "Removable whole disks:"
