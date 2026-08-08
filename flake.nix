@@ -39,6 +39,39 @@
           modules = sharedModules ++ [ ./hosts/vm.nix ];
         };
 
+      # An SD image is a file, not a program, so `nix run .#image` would
+      # otherwise die with a bare "No such file or directory". Since `nix run`
+      # prefers apps.* over packages.*, this intercepts it and does the useful
+      # thing: build the image, then say where it is and how to write it.
+      imageApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellScriptBin "tabletop-image" ''
+            set -eu
+            img=$(echo ${image}/sd-image/*.img)
+            echo "SD image for the Orange Pi 5 Plus:"
+            echo
+            echo "    $img"
+            echo "    $(${hp.coreutils}/bin/du -h "$img" | ${hp.coreutils}/bin/cut -f1)"
+            echo
+            echo "To get a 'result' symlink in the current directory instead:"
+            echo "    nix build .#image"
+            echo
+            echo "To write it to a card (see docs/FLASHING.md for the full procedure):"
+            echo "    diskutil list                      # identify the card"
+            echo "    diskutil unmountDisk /dev/diskN"
+            echo "    sudo dd if=$img of=/dev/rdiskN bs=4m status=progress"
+            echo
+            echo "Use rdiskN, not diskN — the raw device is far faster."
+          '';
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-image";
+          meta.description = "Build the SD image and print how to flash it";
+        };
+
       vmApp =
         hostSystem:
         let
@@ -84,8 +117,14 @@
       # The runner is named run-${system.name}-vm, so derive the path from the
       # configuration rather than hardcoding it — otherwise renaming the host
       # silently breaks `nix run .#vm`.
-      apps.${target}.vm = vmApp target;
-      apps.aarch64-darwin.vm = vmApp "aarch64-darwin";
+      apps.${target} = {
+        vm = vmApp target;
+        image = imageApp target;
+      };
+      apps.aarch64-darwin = {
+        vm = vmApp "aarch64-darwin";
+        image = imageApp "aarch64-darwin";
+      };
 
       formatter.aarch64-darwin = nixpkgs.legacyPackages.aarch64-darwin.nixfmt-rfc-style;
       formatter.${target} = nixpkgs.legacyPackages.${target}.nixfmt-rfc-style;

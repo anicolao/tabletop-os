@@ -23,72 +23,98 @@
   ...
 }:
 
+let
+  cfg = config.tabletop.vm;
+in
 {
   imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
 
-  networking.hostName = "tabletop-vm";
+  options.tabletop.vm = {
+    width = lib.mkOption {
+      type = lib.types.int;
+      default = 1920;
+      description = ''
+        Emulated display width. virtio-gpu defaults to 1280x800, which is too
+        small to lay out a tabletop UI meaningfully — the launcher is designed
+        for a large panel with players on all four sides.
+      '';
+    };
 
-  # Build the runner for the machine that will run qemu, not for the guest.
-  # Without this, `nix run .#vm` on a Mac produces an aarch64-linux script that
-  # the Mac cannot execute.
-  virtualisation.host.pkgs = hostPkgs;
-
-  virtualisation = {
-    memorySize = 4096;
-    cores = 4;
-    diskSize = 8192;
-
-    # Open a window. The entire point is watching the launcher come up.
-    graphics = true;
-
-    # `ssh -p 2222 admin@localhost` reaches the guest, which is how you inspect
-    # `systemctl status cage-tty1` and `journalctl` without fighting the
-    # graphical console.
-    forwardPorts = [
-      {
-        from = "host";
-        host.port = 2222;
-        guest.port = 22;
-      }
-    ];
-
-    # qemu-vm.nix already supplies usb-ehci, usb-kbd and usb-tablet when
-    # graphics is on, so only the GPU needs adding. A tablet gives absolute
-    # pointer coordinates, which is the closest QEMU gets to touch input.
-    qemu.options = [
-      # virtio-gpu gives the guest a real DRM device, which is what cage needs
-      # to start at all. Rendering is host-side rather than a Mali, so treat any
-      # performance number from here as meaningless.
-      "-device virtio-gpu-pci"
-    ];
+    height = lib.mkOption {
+      type = lib.types.int;
+      default = 1080;
+      description = "Emulated display height.";
+    };
   };
 
-  # There is no panthor here and no Mali firmware to load. Chromium will fall
-  # back to software rendering via llvmpipe; that is expected in the VM and a
-  # bug on the board.
-  hardware.graphics.enable = true;
+  config = {
+    networking.hostName = "tabletop-vm";
 
-  # The image writes extlinux for U-Boot; the VM boots straight into the
-  # kernel, so it needs a bootloader that qemu-vm understands.
-  boot.loader.grub.enable = false;
-  boot.loader.generic-extlinux-compatible.enable = false;
+    # Build the runner for the machine that will run qemu, not for the guest.
+    # Without this, `nix run .#vm` on a Mac produces an aarch64-linux script that
+    # the Mac cannot execute.
+    virtualisation.host.pkgs = hostPkgs;
 
-  # Serial console, so `nix run .#vm` prints something useful in the terminal
-  # alongside the graphical window.
-  boot.kernelParams = [ "console=ttyAMA0,115200n8" ];
+    virtualisation = {
+      memorySize = 4096;
+      cores = 4;
+      diskSize = 8192;
 
-  # Log in without a password on the console. Safe here precisely because this
-  # configuration never reaches hardware — hosts/opi5plus.nix does not import it.
-  services.getty.autologinUser = lib.mkDefault "admin";
-  users.users.admin.password = lib.mkForce "tabletop";
-  users.users.root.password = lib.mkForce "tabletop";
-  services.openssh.settings.PermitRootLogin = lib.mkForce "yes";
-  services.openssh.settings.PasswordAuthentication = lib.mkForce true;
+      # Open a window. The entire point is watching the launcher come up.
+      graphics = true;
 
-  # NetworkManager cannot get anywhere useful behind qemu's user-mode NAT, and
-  # the kiosk waits on network-online.target before starting. Use the simple
-  # DHCP client so that target is actually reached.
-  networking.networkmanager.enable = lib.mkForce false;
-  networking.useDHCP = lib.mkForce true;
-  systemd.services.NetworkManager-wait-online.enable = lib.mkForce false;
+      # `ssh -p 2222 admin@localhost` reaches the guest, which is how you inspect
+      # `systemctl status cage-tty1` and `journalctl` without fighting the
+      # graphical console.
+      forwardPorts = [
+        {
+          from = "host";
+          host.port = 2222;
+          guest.port = 22;
+        }
+      ];
+
+      # qemu-vm.nix already supplies usb-ehci, usb-kbd and usb-tablet when
+      # graphics is on, so only the GPU needs adding. A tablet gives absolute
+      # pointer coordinates, which is the closest QEMU gets to touch input.
+      qemu.options = [
+        # virtio-gpu gives the guest a real DRM device, which is what cage needs
+        # to start at all. Rendering is host-side rather than a Mali, so treat any
+        # performance number from here as meaningless.
+        #
+        # xres/yres set the mode virtio-gpu advertises; without them you get the
+        # 1280x800 default.
+        "-device virtio-gpu-pci,xres=${toString cfg.width},yres=${toString cfg.height}"
+      ];
+    };
+
+    # There is no panthor here and no Mali firmware to load. Chromium will fall
+    # back to software rendering via llvmpipe; that is expected in the VM and a
+    # bug on the board.
+    hardware.graphics.enable = true;
+
+    # The image writes extlinux for U-Boot; the VM boots straight into the
+    # kernel, so it needs a bootloader that qemu-vm understands.
+    boot.loader.grub.enable = false;
+    boot.loader.generic-extlinux-compatible.enable = false;
+
+    # Serial console, so `nix run .#vm` prints something useful in the terminal
+    # alongside the graphical window.
+    boot.kernelParams = [ "console=ttyAMA0,115200n8" ];
+
+    # Log in without a password on the console. Safe here precisely because this
+    # configuration never reaches hardware — hosts/opi5plus.nix does not import it.
+    services.getty.autologinUser = lib.mkDefault "admin";
+    users.users.admin.password = lib.mkForce "tabletop";
+    users.users.root.password = lib.mkForce "tabletop";
+    services.openssh.settings.PermitRootLogin = lib.mkForce "yes";
+    services.openssh.settings.PasswordAuthentication = lib.mkForce true;
+
+    # NetworkManager cannot get anywhere useful behind qemu's user-mode NAT, and
+    # the kiosk waits on network-online.target before starting. Use the simple
+    # DHCP client so that target is actually reached.
+    networking.networkmanager.enable = lib.mkForce false;
+    networking.useDHCP = lib.mkForce true;
+    systemd.services.NetworkManager-wait-online.enable = lib.mkForce false;
+  };
 }

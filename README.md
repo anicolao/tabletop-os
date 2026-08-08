@@ -28,12 +28,19 @@ time, not image size. Where those trade against each other, frames win.
 # Boot the kiosk in an emulator, no hardware needed
 nix run .#vm
 
-# Build a flashable SD card image for the Orange Pi 5 Plus
+# Build the SD card image and print where it is and how to flash it
+nix run .#image
+
+# Same image, but leave a ./result symlink
 nix build .#image
 
 # Inspect the system closure without building a multi-gigabyte image
 nix build .#toplevel
 ```
+
+An SD image is a file rather than a program, so `nix run .#image` is wired to
+an app that builds it and prints the path plus the `dd` invocation — otherwise
+it would fail with a bare "No such file or directory".
 
 Building requires an `aarch64-linux` builder. On macOS that means the
 nix-darwin `linux-builder`; see [docs/BUILDING.md](docs/BUILDING.md).
