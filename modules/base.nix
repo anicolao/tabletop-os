@@ -86,8 +86,8 @@
     # UART, and the panel itself is a non-HID USB device, so both buses need
     # to be inspectable from here.
     #
-    # Use /dev/ttyS0 (uart9) for that link — NOT ttyS2, which is the RK3588
-    # debug UART carrying the kernel console and a live getty.
+    # Use /dev/ttyS0 (uart6, on 40-pin header pins 8/10) for that link — NOT
+    # ttyS2, the debug UART carrying the kernel console and a live getty.
     picocom
     socat
     usbutils

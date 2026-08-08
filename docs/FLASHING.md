@@ -114,42 +114,58 @@ A dark screen with a healthy `cage-tty1` is a display-pipeline problem
 (step 3). See
 [ARCHITECTURE.md](ARCHITECTURE.md#verifying-acceleration--the-one-check-that-matters).
 
-## Serial: which UART to use
+## Serial: wiring the 40-pin header
 
-The board exposes two UARTs, and picking the wrong one wastes an evening.
-
-```
-ttyS2 = feb50000.serial = uart2   gpio0-13, gpio0-14   debug UART
-ttyS0 = febc0000.serial = uart9   gpio2-18, gpio2-20   free
-```
-
-(Read off the running board with
-`grep uart /sys/kernel/debug/pinctrl/*/pinmux-pins`.)
-
-**`ttyS2` is the RK3588 debug UART and is already spoken for** — it carries the
-kernel console at **1500000** baud *and* runs a `serial-getty`. Attach another
-device there and it receives boot logs and a login prompt, while anything it
-sends is typed into a shell.
-
-**Use `/dev/ttyS0` for talking to other hardware.** It is registered, has no
-console, no getty, and nothing holds it open.
-
-`gpio2-18` and `gpio2-20` are **GPIO2_C2** and **GPIO2_C4**. Confirm which
-physical header pins those are against the Orange Pi pinout before wiring — the
-40-pin header is *physically* Raspberry Pi compatible (same power and ground
-positions, a Pi ribbon fits) but the **GPIO functions are not the Pi's**, so
-pins 8/10 are not necessarily UART here.
-
-Wiring to another 3.3V board — a Pi, say — needs no level shifter, but needs
-three wires, not two:
+Three UARTs are live on this image. Only one of them is on the 40-pin header,
+and picking the wrong one wastes an evening:
 
 ```
-TX  →  RX
-RX  →  TX
-GND →  GND      mandatory; without a shared reference you get silence or garbage
+ttyS0 = feb90000.serial = uart6   gpio1-0, gpio1-1     40-pin header  ← use this
+ttyS1 = febc0000.serial = uart9   gpio2-18, gpio2-20   NOT on the header
+ttyS2 = feb50000.serial = uart2   gpio0-13, gpio0-14   debug UART, console + getty
 ```
 
-Do **not** connect 5V or 3.3V between two independently powered boards.
+Confirm on any running board with
+`grep uart /sys/kernel/debug/pinctrl/*/pinmux-pins`.
+
+**Wire to `/dev/ttyS0`.** It is uart6, enabled by the device-tree overlay in
+`hosts/opi5plus.nix`, with no console, no getty and nothing holding it open.
+
+| Wire | Header pin | Signal |
+| --- | --- | --- |
+| Orange Pi **TX** → other device **RX** | **8** | GPIO33 / gpio1-1 |
+| Orange Pi **RX** ← other device **TX** | **10** | GPIO32 / gpio1-0 |
+| **GND** ↔ **GND** | **6** | (9, 14, 20, 25, 30, 34, 39 also work) |
+
+These are the same positions the Raspberry Pi uses, which is deliberate on
+Orange Pi's part — but note that is a coincidence of *this* UART. The 40-pin
+header is physically Pi-compatible (a Pi ribbon fits, power and ground line up)
+while the **GPIO functions generally are not** the Pi's, so do not assume any
+other pin matches.
+
+Derived by cross-referencing Orange Pi's own `wiringOP` `physToGpio_5PLUS`
+table (pin 8 → GPIO33, pin 10 → GPIO32) with the board's live pinmux
+(`uart6m1-xfer` occupies pins 32 and 33).
+
+**TX vs RX above is strongly expected but was not directly verified** — the
+kernel pinctrl source could not be fetched to confirm which of gpio1-0/gpio1-1
+is which. Getting it backwards is harmless: you get no data, so swap the two
+wires. The only mistake that damages hardware is putting a data line on a power
+pin.
+
+Confirm the wiring with a loopback before involving another device — jumper
+**pin 8 to pin 10**, then:
+
+```sh
+picocom -b 115200 /dev/ttyS0     # typing should echo back; Ctrl-A Ctrl-X to exit
+```
+
+Characters coming back prove both pins are the UART and the mux is right,
+without needing to know which is which.
+
+Both sides are 3.3V, so no level shifter is needed — but you need **three**
+wires, not two. Without a common ground you get silence or garbage. Do **not**
+connect 5V or 3.3V between two independently powered boards.
 
 ### Reaching the UART from your laptop
 

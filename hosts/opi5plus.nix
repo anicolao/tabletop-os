@@ -78,6 +78,55 @@
     deviceTree = {
       enable = true;
       name = "rockchip/rk3588-orangepi-5-plus.dtb";
+
+      # Bring up UART6 on the 40-pin header.
+      #
+      # Mainline enables only uart2 — the debug UART, on its own 3-pin header,
+      # already carrying the kernel console and a getty — and uart9, whose pins
+      # are GPIO2_C2/C4 and are *not* brought out to the 40-pin header at all.
+      # So out of the box there is no usable UART on the header.
+      #
+      # uart6m1 sits on GPIO1_A0 and GPIO1_A1. Orange Pi's own physToGpio_5PLUS
+      # table maps those to physical pins 10 and 8 — the same positions the
+      # Raspberry Pi uses. Cross-checked against the board's live pinmux
+      # (/sys/kernel/debug/pinctrl/*/pingroups lists uart6m1-xfer as pins
+      # 32 and 33).
+      #
+      #     pin 8   GPIO33 / gpio1-1   TX  -> other device's RX
+      #     pin 10  GPIO32 / gpio1-0   RX  <- other device's TX
+      #     pin 6                      GND, mandatory; do NOT link 5V or 3V3
+      #
+      # Label references resolve because the DTB carries __symbols__ — checked
+      # on the running board rather than assumed, since mainline DTBs are often
+      # built without them and label-based overlays then silently fail.
+      overlays = [
+        {
+          name = "uart6m1-on-40pin-header";
+          dtsText = ''
+            /dts-v1/;
+            /plugin/;
+
+            / {
+              /* Load-bearing, and its absence fails silently.
+                 nixpkgs' apply_overlays.py skips any overlay whose root
+                 `compatible` does not intersect the target DTB's. With no
+                 compatible at all the intersection is empty, so the overlay
+                 is dropped with only a line in the build log and a DTB that
+                 is byte-identical to the original. */
+              compatible = "xunlong,orangepi-5-plus", "rockchip,rk3588";
+
+              fragment@0 {
+                target = <&uart6>;
+                __overlay__ {
+                  pinctrl-names = "default";
+                  pinctrl-0 = <&uart6m1_xfer>;
+                  status = "okay";
+                };
+              };
+            };
+          '';
+        }
+      ];
     };
 
     # panthor requests arm/mali/arch10.8/mali_csffw.bin at probe time. There is
