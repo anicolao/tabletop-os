@@ -2,3 +2,10 @@
 /result-*
 *.img
 *.img.zst
+
+# Emulator artifacts. `nix run .#vm` writes its disk image into whatever
+# directory you launch from, which is usually this one, and it grows to
+# hundreds of megabytes.
+*.qcow2
+*.ppm
+*.sock
