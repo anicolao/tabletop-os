@@ -232,11 +232,15 @@ case "$os" in
 esac
 
 echo "Writing (this needs sudo, and takes a few minutes) ..."
-if [ "$os" = "Darwin" ]; then
-  sudo dd if="$img" of="$raw" bs=4m status=progress
-else
-  sudo dd if="$img" of="$raw" bs=4M status=progress conv=fsync
-fi
+
+# TABLETOP_DD is a store path substituted by flake.nix, not a PATH lookup.
+#
+# This matters because GNU and BSD dd disagree on arguments: GNU wants bs=4M
+# and rejects the BSD spelling bs=4m outright. `sudo dd` would resolve through
+# sudo's PATH, which varies by machine and sudoers configuration, so the binary
+# and the arguments written for it could silently disagree. Pinning the exact
+# derivation means the flake decides, and the pairing is fixed at build time.
+sudo "$TABLETOP_DD" if="$img" of="$raw" bs=4M status=progress conv=fsync
 
 echo "Flushing ..."
 sync

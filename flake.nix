@@ -115,6 +115,9 @@
             ];
             text = ''
               TABLETOP_IMAGE_DIR=${image}
+              # Pinned to a store path rather than left to PATH: this one runs
+              # under sudo, and GNU and BSD dd take incompatible arguments.
+              TABLETOP_DD=${lib.getBin hp.coreutils}/bin/dd
             ''
             + builtins.readFile ./scripts/burn.sh;
           };
