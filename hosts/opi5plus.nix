@@ -100,6 +100,75 @@
       # on the running board rather than assumed, since mainline DTBs are often
       # built without them and label-based overlays then silently fail.
       overlays = [
+        # EXPERIMENTAL: DisplayPort over the USB-C port.
+        #
+        # The attached HDMI panel is limited to 4K@30 — its EDID declares
+        # Max_TMDS_Character_Rate 300 MHz and carries no HDMI Forum block, so
+        # 4K@60 is not something a different cable can unlock. Its DisplayPort
+        # input reportedly does 4K@60, which would lift the 30 fps ceiling that
+        # currently caps everything the GPU can do.
+        #
+        # The pieces are already present: dp@fde50000 exists with
+        # compatible = "rockchip,rk3588-dp" and phys = <&usbdp_phy0 PHY_TYPE_DP>,
+        # CONFIG_ROCKCHIP_DW_DP is built in, usbdp_phy0 is enabled with
+        # mode-switch/orientation-switch and SBU GPIOs, and a Type-C port is
+        # registered. Only the device-tree wiring is missing: dp0 is disabled
+        # and its ports have no remote-endpoint.
+        #
+        # HDMI0 occupies vp0 and HDMI1 occupies vp1, so DP0 goes to vp2 — which
+        # supports 4K, unlike vp3 which is limited to 1080p.
+        #
+        # Deliberately minimal: this touches only dp0 and vp2, and leaves the
+        # usbdp_phy0 port graph alone. Mainline boards that do this also
+        # restructure the PHY's endpoints, but their graph topology differs
+        # from this board's (here SBU sits at reg 1, there at reg 3), and
+        # getting that wrong risks breaking USB rather than merely failing to
+        # produce a display. If a DP connector does not appear in
+        # /sys/class/drm after this, the PHY endpoints are the next thing to
+        # add — see rk3588s-indiedroid-nova.dts for the full pattern.
+        {
+          name = "dp0-over-usbc";
+          dtsText = ''
+            /dts-v1/;
+            /plugin/;
+
+            / {
+              compatible = "xunlong,orangepi-5-plus", "rockchip,rk3588";
+
+              fragment@0 {
+                target = <&dp0>;
+                __overlay__ {
+                  status = "okay";
+                };
+              };
+
+              fragment@1 {
+                target = <&dp0_in>;
+                __overlay__ {
+                  dp0_in_vp2: endpoint {
+                    remote-endpoint = <&vp2_out_dp0>;
+                  };
+                };
+              };
+
+              fragment@2 {
+                target = <&vp2>;
+                __overlay__ {
+                  #address-cells = <1>;
+                  #size-cells = <0>;
+
+                  /* reg 10 = ROCKCHIP_VOP2_EP_DP0, hardcoded rather than
+                     included: overlay compilation does not reliably have the
+                     kernel's dt-bindings headers on its include path. */
+                  vp2_out_dp0: endpoint@a {
+                    reg = <10>;
+                    remote-endpoint = <&dp0_in_vp2>;
+                  };
+                };
+              };
+            };
+          '';
+        }
         {
           name = "uart6m1-on-40pin-header";
           dtsText = ''

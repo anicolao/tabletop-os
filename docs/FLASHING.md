@@ -114,6 +114,63 @@ A dark screen with a healthy `cage-tty1` is a display-pipeline problem
 (step 3). See
 [ARCHITECTURE.md](ARCHITECTURE.md#verifying-acceleration--the-one-check-that-matters).
 
+## Display: refresh rate is the animation ceiling
+
+Check what the panel is actually running, not what it can display:
+
+```sh
+sudo grep -aE 'mode: "' /sys/kernel/debug/dri/*/state | grep -v '""'
+```
+
+The two numbers after the resolution are **refresh rate** and **pixel clock**:
+
+```
+mode: "3840x2160": 30 297000     ← 30 Hz at 297 MHz
+```
+
+297 MHz is the HDMI 1.4 ceiling; 4K@60 needs 594 MHz. If you see 30 Hz, read the
+display's EDID before blaming the cable or the driver:
+
+```sh
+sudo cat /sys/class/drm/card*-HDMI-A-2/edid > /tmp/edid.bin
+nix run nixpkgs#edid-decode -- /tmp/edid.bin | grep -iE "Maximum TMDS|HDMI Forum"
+```
+
+A `Maximum TMDS Clock` at or below 300 MHz, or the absence of an **HDMI Forum**
+vendor block, means the panel itself is HDMI 1.4 and no cable will produce
+4K@60. The display attached during bring-up reports exactly that — its product
+name descriptor even reads `4K2KHDMI30`.
+
+This matters more than it looks: **the panel's refresh rate caps everything**.
+A GPU rendering 120 fps still presents 30. If a 4K panel is limited to 30 Hz,
+forcing 1080p@60 may feel considerably better for animation:
+
+```nix
+boot.kernelParams = [ "video=HDMI-A-2:1920x1080@60" ];
+```
+
+`xrandr` will not help here, and cannot even run — this is Wayland under cage,
+so there is no X server and no `DISPLAY`.
+
+### DisplayPort over USB-C (experimental)
+
+`hosts/opi5plus.nix` enables `dp0` on vp2, which makes a **`DP-1` connector**
+appear. Confirmed on hardware: the driver binds
+(`bound fde50000.dp (ops dw_dp_rockchip_component_ops)`) and the connector
+exists, reading `disconnected` with nothing attached.
+
+That proves the controller and VOP pipeline work. It does **not** prove USB-C
+Alt Mode negotiation works — that additionally needs the DP endpoints wired
+into `usbdp_phy0`'s port graph, which is deliberately left alone here because
+this board's PHY graph differs from the mainline examples and getting it wrong
+breaks USB rather than merely failing to display. If a USB-C→DP cable leaves
+`DP-1` reading `disconnected`, that is the next thing to add — see
+`rk3588s-indiedroid-nova.dts` for the full pattern.
+
+Note that enabling DP renumbered the DRM cards (the display subsystem moved
+from `card0` to `card1`), so prefer globs like `/sys/class/drm/card*-HDMI-A-2`
+over hardcoded numbers.
+
 ## Serial: wiring the 40-pin header
 
 Three UARTs are live on this image. Only one of them is on the 40-pin header,

@@ -1,0 +1,1314 @@
+U-Boot 2012.07-00008-ge2d58a1-dirty (Aug 08 2014 - 20:57:19) for Exynos5422
+
+CPU: Exynos5422 Rev0.1 [Samsung SOC on SMP Platform Base on ARM CortexA7]
+APLL = 800MHz, KPLL = 800MHz
+MPLL = 532MHz, BPLL = 825MHz
+
+Board: XYREF5422
+DRAM:  2 GiB
+WARNING: Caches not enabled
+
+TrustZone Enabled BSP
+BL1 version: ÿ/áâ
+VDD_KFC: 0x44
+LDO19: 0xf2
+
+Checking Boot Mode ... SDMMC
+MMC:   S5P_MSHC2: 0, S5P_MSHC0: 1
+MMC Device 0: 58.2 GiB
+MMC Device 1: [ERROR] response error : 00000006 cmd 8
+[ERROR] response error : 00000006 cmd 55
+[ERROR] response error : 00000006 cmd 2
+*** Warning - bad CRC, using default environment
+
+In:    serial
+Out:   serial
+Err:   serial
+Net:   No ethernet found.
+Press 'Enter' or 'Space' to stop autoboot:  1  0 
+there are pending interrupts 0x00000001
+reading boot.ini
+
+2037 bytes read
+Loading boot.ini from FAT
+Find boot.ini file from FAT/Ext4 Area!!
+boot.ini command = setenv initrd_high "0xffffffff"
+boot.ini command = setenv fdt_high "0xffffffff"
+boot.ini command = setenv macaddr "00:1e:06:61:7a:39"
+boot.ini command = setenv bootrootfs "console=tty1 console=ttySAC2,115200n8 root=UUID=e139ce78-9841-40fe-8823-96a304a09859 rootwait ro"
+boot.ini command = setenv bootcmd "fatload mmc 0:1 0x40008000 zImage; fatload mmc 0:1 0x42000000 uInitrd; fatload mmc 0:1 0x44000000 exynos5422-odroidxu3.dtb; bootz 0x40008000 0x42000000 0x44000000"
+boot.ini command = setenv bootargs "${bootrootfs} ${videoconfig}"
+boot.ini command = boot
+reading zImage
+
+3180496 bytes read
+reading uInitrd
+
+2099284 bytes read
+reading exynos5422-odroidxu3.dtb
+
+51625 bytes read
+## Loading init Ramdisk from Legacy Image at 42000000 ...
+   Image Name:   uInitrd 3.10.58
+   Image Type:   ARM Linux RAMDisk Image (uncompressed)
+   Data Size:    2099220 Bytes = 2 MiB
+   Load Address: 00000000
+   Entry Point:  00000000
+## Flattened Device Tree blob at 44000000
+   Booting using the fdt blob at 0x44000000
+   Using Device Tree in place at 44000000, end 4400f9a8
+
+Starting kernel ...
+
+[    0.000000] [c0] Booting Linux on physical CPU 0x100
+[    0.000000] [c0] Initializing cgroup subsys cpu
+[    0.000000] [c0] Initializing cgroup subsys cpuacct
+[    0.000000] [c0] Linux version 3.10.72+ (odroid@odroid) (gcc version 4.9.2 (Ubuntu/Linaro 4.9.2-0ubuntu1~14.04) ) #1 SMP PREEMPT Tue May 19 17:13:21 IST 2015
+[    0.000000] [c0] CPU: ARMv7 Processor [410fc073] revision 3 (ARMv7), cr=10c5387d
+[    0.000000] [c0] CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
+[    0.000000] [c0] Machine: ODROID-XU3, model: Hardkernel odroid-xu3 board based on EXYNOS5422
+[    0.000000] [c0] ION: Contiguous 0x6650000 bytes @ 0x0 defined for 0:common
+[    0.000000] [c0] ION: Contiguous 0x400000 bytes @ 0x0 defined for 2:mfc_sh
+[    0.000000] [c0] ION: Contiguous 0x800000 bytes @ 0x0 defined for 10:g2d_wfd
+[    0.000000] [c0] ION: Contiguous 0x6000000 bytes @ 0x0 defined for 11:video
+[    0.000000] [c0] ION: Contiguous 0x1000000 bytes @ 0x0 defined for 7:mfc_input
+[    0.000000] [c0] ION: Contiguous 0x400000 bytes @ 0x0 defined for 9:sectbl
+[    0.000000] [c0] ION: Contiguous 0x400000 bytes @ 0x0 defined for 8:mfc_fw
+[    0.000000] [c0] ION: Contiguous 0x400000 bytes @ 0x0 defined for 12:mfc_nfw
+[    0.000000] [c0] ION: Contiguous 0x400000 bytes @ 0x0 defined for 13:secdma
+[    0.000000] [c0] cma: CMA: reserved 104 MiB at b8000000
+[    0.000000] [c0] cma: CMA: reserved 4 MiB at b7c00000
+[    0.000000] [c0] cma: CMA: reserved 8 MiB at b7400000
+[    0.000000] [c0] cma: CMA: reserved 96 MiB at b1400000
+[    0.000000] [c0] cma: CMA: reserved 16 MiB at b0400000
+[    0.000000] [c0] cma: CMA: reserved 4 MiB at b0000000
+[    0.000000] [c0] cma: CMA: reserved 4 MiB at afc00000
+[    0.000000] [c0] cma: CMA: reserved 4 MiB at af800000
+[    0.000000] [c0] cma: CMA: reserved 4 MiB at af400000
+[    0.000000] [c0] cma: CMA: reserved 256 MiB at 5f800000
+[    0.000000] [c0] Memory policy: ECC disabled, Data cache writealloc
+[    0.000000] [c0] create_mapping_memory: section: 40000000 ~ 6f800000
+[    0.000000] [c0] CPU EXYNOS5422 (id 0xe5422001)
+[    0.000000] [c0] PERCPU: Embedded 9 pages/cpu @c1da0000 s14016 r8192 d14656 u36864
+[    0.000000] [c0] Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 517136
+[    0.000000] [c0] Kernel command line: console=tty1 console=ttySAC2,115200n8 root=UUID=e139ce78-9841-40fe-8823-96a304a09859 rootwait ro
+[    0.000000] [c0] PID hash table entries: 4096 (order: 2, 16384 bytes)
+[    0.000000] [c0] Dentry cache hash table entries: 131072 (order: 7, 524288 bytes)
+[    0.000000] [c0] Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
+[    0.000000] [c0] Memory: 2026MB = 2026MB total
+[    0.000000] [c0] Memory: 1528544k/1528544k available, 546080k reserved, 1046528K highmem
+[    0.000000] [c0] Virtual kernel memory layout:
+[    0.000000]     vector  : 0xffff0000 - 0xffff1000   (   4 kB)
+[    0.000000]     fixmap  : 0xfff00000 - 0xfffe0000   ( 896 kB)
+[    0.000000]     vmalloc : 0xf0000000 - 0xff000000   ( 240 MB)
+[    0.000000]     lowmem  : 0xc0000000 - 0xef800000   ( 760 MB)
+[    0.000000]     pkmap   : 0xbfe00000 - 0xc0000000   (   2 MB)
+[    0.000000]     modules : 0xbf000000 - 0xbfe00000   (  14 MB)
+[    0.000000]       .text : 0xc0008000 - 0xc085000c   (8481 kB)
+[    0.000000]       .init : 0xc0851000 - 0xc08b96c0   ( 418 kB)
+[    0.000000]       .data : 0xc08ba000 - 0xc092a594   ( 450 kB)
+[    0.000000]        .bss : 0xc092a594 - 0xc0d91e20   (4511 kB)
+[    0.000000] [c0] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=8, Nodes=1
+[    0.000000] [c0] Preemptible hierarchical RCU implementation.
+[    0.000000] [c0] NR_IRQS:16 nr_irqs:16 16
+[    0.000000] [c0] apll 800000000
+[    0.000000] [c0] bpll 825000000
+[    0.000000] [c0] cpll 666000000
+[    0.000000] [c0] dpll 600000000
+[    0.000000] [c0] epll 180633609
+[    0.000000] [c0] rpll 66000000
+[    0.000000] [c0] ipll 432000000
+[    0.000000] [c0] spll 800000000
+[    0.000000] [c0] dout_spll_ctrl_div2 400000000
+[    0.000000] [c0] vpll 400000000
+[    0.000000] [c0] mpll 532000000
+[    0.000000] [c0] Clock enables : TOP, MIF
+[    0.000000] [c0] mmc0: dout_mmc0 666000000
+[    0.000000] [c0] mmc1: dout_mmc1 800000000
+[    0.000000] [c0] mmc2: dout_mmc2 666000000
+[    0.000000] [c0] scaler: dout_aclk_400_mscl 333000000 aclk_400_mscl 333000000
+[    0.000000] [c0] [g2d_init_clock:313] aclk_333_g2d:333000000
+[    0.000000] [c0] gscaler: dout_aclk_300_gscl 300000000 aclk_300_gscl 300000000
+[    0.000000] [c0] [jpeg_clock_init:368]jpeg: dout_aclk_300_jpeg 300000000 aclk_300_jpeg 300000000
+[    0.000000] [c0] mfc: aclk_333 400000000
+[    0.000000] [c0] Exynos5422: clock setup completed
+[    0.000000] [c0] Exynos: pwm: clock setup completed
+[    0.000000] [c0] sched_clock: 32 bits at 24MHz, resolution 41ns, wraps every 178956ms
+[    0.000000] [c0] Switching to timer-based delay loop
+[    0.000000] [c0] EXYNOS5422 PMU Initialize
+[    0.000000] [c0] Console: colour dummy device 80x30
+[    0.000000] [c0] console [tty1] enabled
+[    0.000000] [c0] Lock dependency validator: Copyright (c) 2006 Red Hat, Inc., Ingo Molnar
+[    0.000000] [c0] ... MAX_LOCKDEP_SUBCLASSES:  8
+[    0.000000] [c0] ... MAX_LOCK_DEPTH:          48
+[    0.000000] [c0] ... MAX_LOCKDEP_KEYS:        8191
+[    0.000000] [c0] ... CLASSHASH_SIZE:          4096
+[    0.000000] [c0] ... MAX_LOCKDEP_ENTRIES:     16384
+[    0.000000] [c0] ... MAX_LOCKDEP_CHAINS:      32768
+[    0.000000] [c0] ... CHAINHASH_SIZE:          16384
+[    0.000000] [c0]  memory used by lock dependency info: 3679 kB
+[    0.000000] [c0]  per task-struct memory footprint: 1152 bytes
+[    0.006481] [c0] Calibrating delay loop (skipped), value calculated using timer frequency.. 48.00 BogoMIPS (lpj=120000)
+[    0.006570] [c0] pid_max: default: 32768 minimum: 301
+[    0.007045] [c0] Mount-cache hash table entries: 512
+[    0.043097] [c0] Initializing cgroup subsys debug
+[    0.043170] [c0] Initializing cgroup subsys freezer
+[    0.043408] [c0] CPU: Testing write buffer coherency: ok
+[    0.043505] [c0] ftrace: allocating 21767 entries in 64 pages
+[    0.089637] [c0] /cpus/cpu@0 missing clock-frequency property
+[    0.089703] [c0] /cpus/cpu@1 missing clock-frequency property
+[    0.089748] [c0] /cpus/cpu@2 missing clock-frequency property
+[    0.089793] [c0] /cpus/cpu@3 missing clock-frequency property
+[    0.089835] [c0] /cpus/cpu@4 missing clock-frequency property
+[    0.089878] [c0] /cpus/cpu@5 missing clock-frequency property
+[    0.089920] [c0] /cpus/cpu@6 missing clock-frequency property
+[    0.089963] [c0] /cpus/cpu@7 missing clock-frequency property
+[    0.090117] [c0] CPU0: thread -1, cpu 0, socket 1, mpidr 80000100
+[    0.090338] [c0] Running under secure firmware.
+[    0.090409] [c0] Setting up static identity map for 0xc05e9f90 - 0xc05e9fe8
+[    0.090465] [c0] Exynos-SnapShot: exynos_ss_init failed
+[    0.110807] [c0] ftrace: Allocated trace_printk buffers
+[    0.132656] [c1] CPU1: Booted secondary processor
+[    0.132687] [c1] CPU1: thread -1, cpu 1, socket 1, mpidr 80000101
+[    0.142671] [c2] CPU2: Booted secondary processor
+[    0.142699] [c2] CPU2: thread -1, cpu 2, socket 1, mpidr 80000102
+[    0.152646] [c3] CPU3: Booted secondary processor
+[    0.152674] [c3] CPU3: thread -1, cpu 3, socket 1, mpidr 80000103
+[    0.161605] [c4] CPU4: Booted secondary processor
+[    0.162368] [c4] CPU4: thread -1, cpu 0, socket 0, mpidr 80000000
+[    0.171578] [c5] CPU5: Booted secondary processor
+[    0.172355] [c5] CPU5: thread -1, cpu 1, socket 0, mpidr 80000001
+[    0.181598] [c6] CPU6: Booted secondary processor
+[    0.182376] [c6] CPU6: thread -1, cpu 2, socket 0, mpidr 80000002
+[    0.191616] [c7] CPU7: Booted secondary processor
+[    0.192372] [c7] CPU7: thread -1, cpu 3, socket 0, mpidr 80000003
+[    0.192632] [c0] Brought up 8 CPUs
+[    0.192972] [c0] SMP: Total of 8 processors activated (384.00 BogoMIPS).
+[    0.193018] [c0] CPU: All CPU(s) started in SVC mode.
+[    0.195334] [c0] devtmpfs: initialized
+[    0.233239] [c6] sched: registering cpufreq notifiers for scale-invariant loads
+[    0.235587] [c6] pinctrl core: initialized pinctrl subsystem
+[    0.237557] [c4] regulator-dummy: no parameters
+[    0.247684] [c5] NET: Registered protocol family 16
+[    0.247984] [c5] DMA: preallocated 256 KiB pool for atomic coherent allocations
+[    0.318818] [c6] syscon 10040000.system-controller: regmap [mem 0x10040000-0x10044fff] registered
+[    0.319604] [c6] syscon 10050000.syscon: regmap [mem 0x10050000-0x10054fff] registered
+[    0.334507] [c6] hw-breakpoint: found 5 (+1 reserved) breakpoint and 4 watchpoint registers.
+[    0.334556] [c6] hw-breakpoint: maximum watchpoint size is 8 bytes.
+[    0.336709] [c6] S3C Power Management, Copyright 2004 Simtec Electronics
+[    0.342039] [c6] PM DOMAIN: pd-cam has a new child pd-isp.
+[    0.342840] [c6] PM DOMAIN: pd-gscl has a new child pd-cam.
+[    0.342889] [c6] EXYNOS5: PM Domain Initialize
+[    0.343190] [c6]    pd-gscl   - on 
+[    0.343374] [c6]    pd-isp    - on 
+[    0.343406] [c6]    pd-mfc    - on,  always
+[    0.343439] [c6]    pd-g3d    - on,  always
+[    0.343472] [c6]    pd-disp1  - on,  always
+[    0.343658] [c6]    pd-maudio - on 
+[    0.343690] [c6]    pd-g2d    - on,  always
+[    0.343875] [c6]    pd-mscl   - on 
+[    0.343909] [c6]    pd-fsys   - on,  always
+[    0.343943] [c6]    pd-psgen  - on,  always
+[    0.343977] [c6]    pd-peric  - on,  always
+[    0.344009] [c6]    pd-wcore  - on,  always
+[    0.344196] [c6]    pd-cam    - on 
+[    0.344234] [c6] EXYNOS: Initializing architecture
+[    0.346544] [c5] exynos-sysmmu 10a60000.sysmmu: --> 10850000.fimg2d
+[    0.346588] [c5] exynos-sysmmu 10a60000.sysmmu: [OK]
+[    0.346934] [c5] exynos-sysmmu 10a70000.sysmmu: --> 10850000.fimg2d
+[    0.346975] [c5] exynos-sysmmu 10a70000.sysmmu: [OK]
+[    0.347329] [c5] exynos-sysmmu 14650000.sysmmu: --> 14450000.mixer
+[    0.347369] [c5] exynos-sysmmu 14650000.sysmmu: [OK]
+[    0.347730] [c5] exynos-sysmmu 13e80000.sysmmu: --> 13e00000.gsc
+[    0.347770] [c5] exynos-sysmmu 13e80000.sysmmu: [OK]
+[    0.348100] [c5] exynos-sysmmu 13e90000.sysmmu: --> 13e10000.gsc
+[    0.348138] [c5] exynos-sysmmu 13e90000.sysmmu: [OK]
+[    0.348481] [c5] exynos-sysmmu 12880000.sysmmu: --> 12800000.scaler
+[    0.348521] [c5] exynos-sysmmu 12880000.sysmmu: [OK]
+[    0.348859] [c5] exynos-sysmmu 12890000.sysmmu: --> 12810000.scaler
+[    0.348899] [c5] exynos-sysmmu 12890000.sysmmu: [OK]
+[    0.349238] [c5] exynos-sysmmu 128a0000.sysmmu: --> 12820000.scaler
+[    0.349278] [c5] exynos-sysmmu 128a0000.sysmmu: [OK]
+[    0.349609] [c5] exynos-sysmmu 128c0000.sysmmu: --> 12800000.scaler
+[    0.349648] [c5] exynos-sysmmu 128c0000.sysmmu: [OK]
+[    0.349980] [c5] exynos-sysmmu 128d0000.sysmmu: --> 12810000.scaler
+[    0.350020] [c5] exynos-sysmmu 128d0000.sysmmu: [OK]
+[    0.350354] [c5] exynos-sysmmu 128e0000.sysmmu: --> 12820000.scaler
+[    0.350393] [c5] exynos-sysmmu 128e0000.sysmmu: [OK]
+[    0.350730] [c5] exynos-sysmmu 11f10000.sysmmu: --> 11f50000.jpeg
+[    0.350769] [c5] exynos-sysmmu 11f10000.sysmmu: [OK]
+[    0.351100] [c5] exynos-sysmmu 11f20000.sysmmu: --> 11f60000.jpeg
+[    0.351139] [c5] exynos-sysmmu 11f20000.sysmmu: [OK]
+[    0.351454] [c5] exynos-sysmmu 11200000.sysmmu: --> 11000000.mfc
+[    0.351492] [c5] exynos-sysmmu 11200000.sysmmu: [OK]
+[    0.351809] [c5] exynos-sysmmu 11210000.sysmmu: --> 11000000.mfc
+[    0.351847] [c5] exynos-sysmmu 11210000.sysmmu: [OK]
+[    0.352211] [c5] exynos-sysmmu 14640000.sysmmu: --> 14400000.fimd
+[    0.352249] [c5] exynos-sysmmu 14640000.sysmmu: [OK]
+[    0.352667] [c5] exynos-sysmmu 14680000.sysmmu: --> 14400000.fimd
+[    0.352707] [c5] exynos-sysmmu 14680000.sysmmu: [OK]
+[    0.353403] [c6] CPU Info : Samsung Exynos5422 Soc is BIN1
+[    0.353439] [c6] Exynos5422 ASV : Use Fusing Speed Group 2
+[    0.353469] [c6] Exynos5422 ASV : invalid IDS value
+[    0.353500] [c6] EXYNOS5422 ASV :  IDS : 0 HPM : 0
+[    0.353563] [c6] VDD_ARM ASV group is 2
+[    0.353596] [c6] VDD_KFC ASV group is 2
+[    0.353625] [c6] VDD_INT ASV group is 2
+[    0.353654] [c6] VDD_MIF ASV group is 2
+[    0.353682] [c6] VDD_G3D ASV group is 2
+[    0.353710] [c6] VDD_ISP ASV group is 2
+[    0.411445] [c7] bio: create slab <bio-0> at 0
+[    0.414782] [c6] VUSB_BOOST_5V: 5000 mV 
+[    0.415564] [c7] MAIN_DC: no parameters
+[    0.416306] [c4] hdmi-en: no parameters
+[    0.419149] [c6] SCSI subsystem initialized
+[    0.422147] [c7] PM DOMAIN: pd-isp, Device : 131a0000.spi Registered
+[    0.422228] [c7] s3c64xx-spi 131a0000.spi: spi bus clock parent not specified, using clock at index 0 as parent
+[    0.422281] [c7] s3c64xx-spi 131a0000.spi: number of chip select lines not specified, assuming 1 chip select line
+[    0.422808] [c7] PM DOMAIN: pd-isp, Device : 131b0000.spi Registered
+[    0.422879] [c7] s3c64xx-spi 131b0000.spi: spi bus clock parent not specified, using clock at index 0 as parent
+[    0.422931] [c7] s3c64xx-spi 131b0000.spi: number of chip select lines not specified, assuming 1 chip select line
+[    0.424988] [c6] usbcore: registered new interface driver usbfs
+[    0.425355] [c6] usbcore: registered new interface driver hub
+[    0.425824] [c7] usbcore: registered new device driver usb
+[    0.433580] [c7] vdd_mif: 700 <--> 1300 mV at 1100 mV 
+[    0.435183] [c4] vdd_eagle: 800 <--> 1500 mV at 1000 mV 
+[    0.436720] [c5] vdd_int: 800 <--> 1400 mV at 1000 mV 
+[    0.438381] [c6] vdd_g3d: 700 <--> 1400 mV at 1000 mV 
+[    0.439907] [c7] vdd_kfc: 800 <--> 1500 mV at 1025 mV 
+[    0.441742] [c4] vddf_2v85: 2850 mV 
+[    0.443531] [c5] vdd_adc: 1800 mV 
+[    0.445208] [c6] vdd_pll: 1800 mV 
+[    0.446878] [c6] vdd_ldo6: 1000 mV 
+[    0.448565] [c6] vdd_ldo7: 1800 mV 
+[    0.450295] [c7] vdd_ldo8: 1800 mV 
+[    0.451814] [c4] LDO9: ramp_delay not set
+[    0.451847] [c4] vdd_ldo9: set_voltage_time_sel() failed: -22
+[    0.452320] [c4] vdd_ldo9: 3300 mV 
+[    0.453989] [c5] vdd_ldo10: 1800 mV 
+[    0.455665] [c6] vdd_ldo11: 1000 mV 
+[    0.457025] [c6] vdd_ldo13: 1800 <--> 3300 mV at 3300 mV 
+[    0.458739] [c6] vdd_ldo15: 3300 mV 
+[    0.460405] [c7] vdd_eth: 3300 mV 
+[    0.462084] [c4] vdd_ldo18: 1800 mV 
+[    0.463640] [c5] LDO19: ramp_delay not set
+[    0.463674] [c5] vdd_ldo19: set_voltage_time_sel() failed: -22
+[    0.464148] [c5] vdd_ldo19: 2850 mV 
+[    0.465505] [c6] vdd_mifs: 800 <--> 1100 mV at 1100 mV 
+[    0.467188] [c6] vdd_ldo26: 3000 mV 
+[    0.468593] [c6] vdd_g3ds: 800 <--> 1100 mV at 1000 mV 
+[    0.470269] [c7] vdd_ldo28: 3300 mV 
+[    0.476355] [c6] i2c-gpio i2c_gpio.13: using pins 33 (SDA) and 23 (SCL)
+[    0.477221] [c6] s3c-i2c 12c60000.i2c: slave address 0x00
+[    0.480958] [c7] s3c-i2c 12c60000.i2c: i2c-3: S3C I2C adapter
+[    0.481250] [c7] s3c-i2c 12c70000.i2c: slave address 0x00
+[    0.481782] [c4] s3c-i2c 12c70000.i2c: i2c-4: S3C I2C adapter
+[    0.482062] [c4] s3c-i2c 12c80000.i2c: slave address 0x00
+[    0.483525] [c6] s3c-i2c 12c80000.i2c: i2c-5: S3C I2C adapter
+[    0.484225] [c6] media: Linux media interface: v0.10
+[    0.484562] [c6] Linux video capture interface: v2.00
+[    0.489227] [c7] IOVMMU: Created debugfs entry at debugfs/iovmm
+[    0.490468] [c6] Advanced Linux Sound Architecture Driver Initialized.
+[    0.491086] [c6] PM DOMAIN: pd-maudio, Device : 3810000.lpass Registered
+[    0.491146] [c6] Samsung Low Power Audio Subsystem driver, (c)2013 Samsung Electronics
+[    0.498485] [c6] Switching to clocksource mct-frc
+[    0.591534] [c6] NET: Registered protocol family 2
+[    0.593186] [c6] TCP established hash table entries: 8192 (order: 4, 65536 bytes)
+[    0.593774] [c6] TCP bind hash table entries: 8192 (order: 6, 294912 bytes)
+[    0.595986] [c6] TCP: Hash tables configured (established 8192 bind 8192)
+[    0.596121] [c6] TCP: reno registered
+[    0.596167] [c6] UDP hash table entries: 512 (order: 3, 40960 bytes)
+[    0.596490] [c6] UDP-Lite hash table entries: 512 (order: 3, 40960 bytes)
+[    0.597583] [c6] NET: Registered protocol family 1
+[    0.598091] [c6] Unpacking initramfs...
+[    0.670586] [c6] Initramfs unpacking failed: no cpio magic
+[    0.672179] [c6] Freeing initrd memory: 2044K (c2001000 - c2200000)
+[    0.687968] [c6] bounce pool size: 64 pages
+[    0.709428] [c7] VFS: Disk quotas dquot_6.5.2
+[    0.710036] [c7] Dquot-cache hash table entries: 1024 (order 0, 4096 bytes)
+[    0.714705] [c7] ROMFS MTD (C) 2007 Red Hat, Inc.
+[    0.715175] [c7] msgmni has been set to 1457
+[    0.719752] [c7] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 250)
+[    0.719825] [c7] io scheduler noop registered
+[    0.719858] [c7] io scheduler deadline registered
+[    0.720332] [c7] io scheduler cfq registered (default)
+[    0.735376] [c7] dma-pl330 10800000.mdma: Loaded driver for PL330 DMAC-2364208
+[    0.735425] [c7] dma-pl330 10800000.mdma: 	DBUFF-64x8bytes Num_Chans-8 Num_Peri-1 Num_Events-32
+[    0.749037] [c7] dma-pl330 121a0000.pdma: Loaded driver for PL330 DMAC-2364208
+[    0.749088] [c7] dma-pl330 121a0000.pdma: 	DBUFF-32x4bytes Num_Chans-8 Num_Peri-32 Num_Events-32
+[    0.764081] [c7] dma-pl330 121b0000.pdma: Loaded driver for PL330 DMAC-2364208
+[    0.764131] [c7] dma-pl330 121b0000.pdma: 	DBUFF-32x4bytes Num_Chans-8 Num_Peri-32 Num_Events-32
+[    0.771810] [c7] dma-pl330 3880000.adma: Loaded driver for PL330 DMAC-2364208
+[    0.771857] [c7] dma-pl330 3880000.adma: 	DBUFF-4x8bytes Num_Chans-6 Num_Peri-16 Num_Events-6
+[    1.062612] [c7] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    1.067145] [c7] 12c00000.serial: ttySAC0 at MMIO 0x12c00000 (irq = 83) is a S3C6400/10
+[    1.068104] [c7] samsung-pinctrl 14010000.pinctrl: pin gpa0-7 already requested by 12c80000.i2c; cannot claim for 12c10000.serial
+[    1.068163] [c7] samsung-pinctrl 14010000.pinctrl: pin-178 (12c10000.serial) status -22
+[    1.068208] [c7] samsung-pinctrl 14010000.pinctrl: could not request pin 178 on device samsung-pinctrl
+[    1.068254] [c7] samsung-uart 12c10000.serial: Error applying setting, reverse things back
+[    1.068412] [c7] 12c10000.serial: ttySAC1 at MMIO 0x12c10000 (irq = 84) is a S3C6400/10
+[    1.069458] [c7] 12c20000.serial: ttySAC2 at MMIO 0x12c20000 (irq = 85) is a S3C6400/10
+[    2.669713] [c7] console [ttySAC2] enabled
+[    2.674764] [c7] 12c30000.serial: ttySAC3 at MMIO 0x12c30000 (irq = 86) is a S3C6400/10
+[    2.685041] [c7] [drm] Initialized drm 1.1.0 20060810
+[    2.697945] [c7] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[    2.703584] [c7] [drm] No driver support for vblank timestamp query.
+[    2.709922] [c7] exynos-mixer 14450000.mixer: probe start
+[    2.715559] [c7] exynos-drm exynos-drm: bound 14450000.mixer (ops mixer_component_ops)
+[    2.724082] [c7] exynos-drm exynos-drm: bound 14530000.hdmi (ops hdmi_component_ops)
+[    2.731225] [c7] [drm] Initialized exynos 1.0.0 20110530 on minor 0
+[    2.740998] [c7] mali 11800000.mali: GPU identified as 0x0620 r0p1 status 0
+[    2.748122] mali 11800000.mali: Probed as mali0
+[    2.764729] [c6] loop: module loaded
+[    2.769334] [c6] tun: Universal TUN/TAP device driver, 1.6
+[    2.773364] [c6] tun: (C) 1999-2004 Max Krasnyansky <maxk@qualcomm.com>
+[    2.781006] [c6] usbcore: registered new interface driver asix
+[    2.786161] [c6] usbcore: registered new interface driver cdc_ether
+[    2.792429] [c6] usbcore: registered new interface driver smsc95xx
+[    2.798557] [c6] usbcore: registered new interface driver zaurus
+[    2.808629] [c6] samsung-pinctrl 13400000.pinctrl: does not have pin group gpc1-0
+[    2.814715] [c6] samsung-pinctrl 13400000.pinctrl: invalid group gpc1-0 in map table
+[    2.822437] [c6] samsung-pinctrl 13400000.pinctrl: does not have pin group gpc1-0
+[    2.829891] [c6] samsung-pinctrl 13400000.pinctrl: could not map group config for "gpc1-0"
+[    2.839401] [c6] samsung-pinctrl 13400000.pinctrl: does not have pin group gpc1-0
+[    2.845601] [c6] samsung-pinctrl 13400000.pinctrl: invalid group gpc1-0 in map table
+[    2.853325] [c6] samsung-pinctrl 13400000.pinctrl: does not have pin group gpc1-0
+[    2.860780] [c6] samsung-pinctrl 13400000.pinctrl: could not map group config for "gpc1-0"
+[    2.869032] exynos-dwc3 usb.1: failed to configure pins
+[    3.278571] [c6] dwc3 12400000.dwc3: dwc3_otg address space is not supported
+[    3.285523] [c6] dwc3 12400000.dwc3: Binding gadget dwc3-gadget
+[    3.290858] [c7] dwc3 12400000.dwc3: Turn on gadget dwc3-gadget
+[    3.296970] [c7] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+[    3.302953] [c7] ehci-s5p: EHCI s5p driver
+[    3.307601] [c7] s5p-ehci 12110000.usb: EHCI Host Controller
+[    3.312802] [c7] s5p-ehci 12110000.usb: new USB bus registered, assigned bus number 1
+[    3.320680] [c7] s5p-ehci 12110000.usb: irq 103, io mem 0x12110000
+[    3.333736] [c7] s5p-ehci 12110000.usb: USB 2.0 started, EHCI 1.00
+[    3.340578] [c7] hub 1-0:1.0: USB hub found
+[    3.343340] [c7] hub 1-0:1.0: 3 ports detected
+[    3.349455] [c7] ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
+[    3.355095] [c7] exynos-ohci 12120000.usb: EXYNOS OHCI Host Controller
+[    3.361205] [c7] exynos-ohci 12120000.usb: new USB bus registered, assigned bus number 2
+[    3.369296] [c7] exynos-ohci 12120000.usb: irq 103, io mem 0x12120000
+[    3.434659] [c7] hub 2-0:1.0: USB hub found
+[    3.437415] [c7] hub 2-0:1.0: 3 ports detected
+[    3.443889] [c7] xhci-hcd xhci-hcd.2.auto: xHCI Host Controller
+[    3.448392] [c7] xhci-hcd xhci-hcd.2.auto: new USB bus registered, assigned bus number 3
+[    3.456741] [c7] xhci-hcd xhci-hcd.2.auto: irq 104, io mem 0x12000000
+[    3.464677] [c7] hub 3-0:1.0: USB hub found
+[    3.467462] [c7] hub 3-0:1.0: 1 port detected
+[    3.472349] [c7] xhci-hcd xhci-hcd.2.auto: xHCI Host Controller
+[    3.477716] [c7] xhci-hcd xhci-hcd.2.auto: new USB bus registered, assigned bus number 4
+[    3.487557] [c7] hub 4-0:1.0: USB hub found
+[    3.490354] [c7] hub 4-0:1.0: 1 port detected
+[    3.496038] [c7] usbcore: registered new interface driver usb-storage
+[    3.501837] [c7] usbcore: registered new interface driver usbserial
+[    3.507695] [c7] usbcore: registered new interface driver usbserial_generic
+[    3.514641] [c7] usbserial: USB Serial support registered for generic
+[    3.522850] [c7] mousedev: PS/2 mouse device common for all mice
+[    3.530031] [c7] s2m-rtc s2m-rtc: rtc init
+[    3.534309] [c7] s2m_rtc_set_time: 2013/1/1 0:0:0(2)
+[    3.540064] [c7] s2m-rtc s2m-rtc: s2m_rtc_enable_wtsr: enable WTSR
+[    3.545208] [c7] s2m-rtc s2m-rtc: s2m_rtc_enable_smpl: enable SMPL
+[    3.551487] [c7] s2m_rtc_enable_smpl: WTSR_SMPL(0xc7)
+[    3.557926] [c7] s2m_rtc_read_time: 2013/1/1 0:0:1(2)
+[    3.561869] [c7] s2m_rtc_read_alarm: 2000/1/1 12:0:0(0)
+[    3.568578] [c7] s2m_rtc_read_time: 2013/1/1 0:0:1(2)
+[    3.573010] [c7] s2m-rtc s2m-rtc: rtc core: registered s2m-rtc as rtc0
+[    3.579877] [c7] i2c /dev entries driver
+[    3.587265] [c7] IR NEC protocol handler initialized
+[    3.590825] [c7] IR RC5(x) protocol handler initialized
+[    3.596103] [c7] IR RC6 protocol handler initialized
+[    3.600972] [c7] IR JVC protocol handler initialized
+[    3.605911] [c7] IR Sony protocol handler initialized
+[    3.610948] [c7] IR RC5 (streamzap) protocol handler initialized
+[    3.616936] [c7] IR SANYO protocol handler initialized
+[    3.622049] [c7] IR MCE Keyboard/mouse protocol handler initialized
+[    3.630013] [c7] s5p-mfc 11000000.mfc: decoder registered as /dev/video6
+[    3.635915] [c7] s5p-mfc 11000000.mfc: encoder registered as /dev/video7
+[    3.642355] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x40000000 B, IOVMM from 0x10000000.
+[    3.650600] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x20000000 B, IOVMM from 0x50000000.
+[    3.653836] [c6] usb 1-1: new high-speed USB device number 2 using s5p-ehci
+[    3.666144] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x10000000 B, IOVMM from 0x70000000.
+[    3.674727] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x30000000 B, IOVMM from 0x80000000.
+[    3.683312] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x20000000 B, IOVMM from 0xb0000000.
+[    3.691891] [c7] s5p-mfc 11000000.mfc: IOVMM: IOVM SIZE = 0x10000000 B, IOVMM from 0xd0000000.
+[    3.701466] [c7] ion_cma ion_mfc_nfw: Alread isolated!
+[    3.706196] [c7] S5P CEC for Exynos4 Driver, (c) 2009 Samsung Electronics
+[    3.714805] [c7] TRIMINFO[0] = 0x80652a
+[    3.717186] [c7] TMU_CONTROL[0] = 0x10609803
+[    3.721486] [c7] CURRENT_TEMP[0] = 0x30
+[    3.725299] [c7] THRESHOLD_TEMP_RISE[0] = 0x7f7a7570
+[    3.730243] [c7] THRESHOLD_TEMP_FALL[0] = 0x7d78736e
+[    3.735192] [c7] INTEN[0] = 0x11111111
+[    3.738916] [c7] INTCLEAR[0] = 0x0
+[    3.742291] [c7] TRIMINFO[1] = 0x806930
+[    3.746117] [c7] TMU_CONTROL[1] = 0x10609803
+[    3.750374] [c7] CURRENT_TEMP[1] = 0x37
+[    3.754197] [c7] THRESHOLD_TEMP_RISE[1] = 0x85807b76
+[    3.759136] [c7] THRESHOLD_TEMP_FALL[1] = 0x837e7974
+[    3.764082] [c7] INTEN[1] = 0x11111111
+[    3.767822] [c7] INTCLEAR[1] = 0x0
+[    3.771226] [c7] TRIMINFO[2] = 0x806329
+[    3.775014] [c7] TMU_CONTROL[2] = 0x10609803
+[    3.779263] [c7] CURRENT_TEMP[2] = 0x31
+[    3.783040] [c7] THRESHOLD_TEMP_RISE[2] = 0x7d78736e
+[    3.787062] [c6] hub 1-1:1.0: USB hub found
+[    3.787244] [c6] hub 1-1:1.0: 5 ports detected
+[    3.796623] [c7] THRESHOLD_TEMP_FALL[2] = 0x7b76716c
+[    3.801569] [c7] INTEN[2] = 0x11111111
+[    3.805292] [c7] INTCLEAR[2] = 0x0
+[    3.808719] [c7] TRIMINFO[3] = 0x806328
+[    3.812454] [c7] TMU_CONTROL[3] = 0x10609803
+[    3.816785] [c7] CURRENT_TEMP[3] = 0x36
+[    3.820566] [c7] THRESHOLD_TEMP_RISE[3] = 0x847f7a75
+[    3.825516] [c7] THRESHOLD_TEMP_FALL[3] = 0x827d7873
+[    3.830462] [c7] INTEN[3] = 0x11111111
+[    3.834186] [c7] INTCLEAR[3] = 0x0
+[    3.837561] [c7] TRIMINFO[4] = 0x80692f
+[    3.841392] [c7] TMU_CONTROL[4] = 0x10609803
+[    3.845640] [c7] CURRENT_TEMP[4] = 0x2e
+[    3.849456] [c7] THRESHOLD_TEMP_RISE[4] = 0x7e79746f
+[    3.854404] [c7] THRESHOLD_TEMP_FALL[4] = 0x7c77726d
+[    3.859350] [c7] INTEN[4] = 0x11111111
+[    3.863038] [c7] INTCLEAR[4] = 0x0
+[    3.868810] [c7] s3c2410-wdt 101d0000.watchdog: watchdog inactive, reset disabled, irq disabled
+[    3.878519] [c7] device-mapper: ioctl: 4.24.0-ioctl (2013-01-15) initialised: dm-devel@redhat.com
+[    3.886875] [c7] cpuidle: using governor ladder
+[    3.892177] [c7] cpuidle: using governor menu
+[    3.895466] [c7] Synopsys Designware Multimedia Card Interface Driver
+[    3.902864] [c7] dwmmc_exynos 12200000.dwmmc0: Clock pin control Pin:gpc0-0 Addr:13410000.pinctrl Val:3 Num:4
+[    3.911596] [c7] dwmmc_exynos 12200000.dwmmc0: dw_mci_parse_dt : emmc h/w reset gpio[69] notifier registered.
+[    3.921465] [c7] dwmmc_exynos 12200000.dwmmc0: Using internal DMA controller.
+[    3.928451] [c7] dwmmc_exynos 12200000.dwmmc0: FIFOTH: 0x 300f0030
+[    3.934620] dwmmc_exynos 12200000.dwmmc0: Version ID is 250a
+[    3.940630] [c7] dwmmc_exynos 12200000.dwmmc0: DW MMC controller at irq 107, 64 bit host data width, 64 deep fifo
+[    3.968720] [c7] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 400000Hz, actual 385416HZ div = 27)
+[    3.988919] [c7] dwmmc_exynos 12200000.dwmmc0: 1 slots initialized
+[    3.994284] [c7] dwmmc_exynos 12220000.dwmmc2: Clock pin control Pin:gpc2-0 Addr:13410000.pinctrl Val:3 Num:4
+[    4.003818] [c7] dwmmc_exynos 12220000.dwmmc2: Using internal DMA controller.
+[    4.010713] [c7] dwmmc_exynos 12220000.dwmmc2: FIFOTH: 0x 300f0030
+[    4.016851] dwmmc_exynos 12220000.dwmmc2: Version ID is 250a
+[    4.022887] [c7] dwmmc_exynos 12220000.dwmmc2: DW MMC controller at irq 109, 64 bit host data width, 64 deep fifo
+[    4.028773] [c5] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 300000Hz, actual 297321HZ div = 35)
+[    4.043007] [c7] mmc1: vmmc regulator found
+[    4.046923] [c7] mmc1: vqmmc regulator found
+[    4.068720] [c7] mmc_host mmc1: Bus speed (slot 0) = 20812500Hz (slot req 400000Hz, actual 385416HZ div = 27)
+[    4.073992] [c4] usb 1-1.1: new high-speed USB device number 3 using s5p-ehci
+[    4.083750] [c5] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 200000Hz, actual 196344HZ div = 53)
+[    4.109039] [c7] dwmmc_exynos 12220000.dwmmc2: 1 slots initialized
+[    4.115269] [c7] leds-gpio leds.15: pins are not configured from the driver
+[    4.124233] [c7] ledtrig-cpu: registered to indicate activity on CPUs
+[    4.129746] [c4] S5P ACE Driver(SLIMSSS), (c) 2013 Samsung Electronics
+[    4.136492] [c4] ACE: ecb-aes-s5p-ace
+[    4.139659] [c4] ACE: cbc-aes-s5p-ace
+[    4.143258] [c4] ACE: ctr-aes-s5p-ace
+[    4.146931] [c4] ACE: xts-aes-s5p-ace
+[    4.148780] [c5] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 100000Hz, actual 99107HZ div = 105)
+[    4.160625] [c4] ACE: sha1-s5p-ace
+[    4.163919] [c4] ACE: sha256-s5p-ace
+[    4.167130] [c4] ACE driver is initialized
+[    4.172360] [c6] hidraw: raw HID events driver (C) Jiri Kosina
+[    4.178950] [c6] usbcore: registered new interface driver usbhid
+[    4.184052] [c7] smsc95xx v1.0.4
+[    4.184608] [c6] usbhid: USB HID core driver
+[    4.186892] [c4] exynos-adc 12d10000.adc: operating without regulator vdd[-19]
+[    4.188177] [c6] exynos-adc 12d10000.adc: Probed successfully driver.
+[    4.190289] [c6] odroid-fan odroid_fan.14: unable to request PWM, trying legacy API
+[    4.190541] [c6] pwm-samsung: tin parent at 66600000
+[    4.200472] [c6] lpass_register_subip: i2s(ddc13010) registered
+[    4.229013] [c6] max98090 1-0010: MAX98090 REVID=0x43
+[    4.241328] [c4] odroid-audio sound.11:  HiFi <-> samsung-i2s-sec mapping ok
+[    4.247986] [c4] odroid-audio sound.11:  HiFi <-> samsung-i2s-sec mapping ok
+[    4.257985] [c6] Netfilter messages via NETLINK v0.30.
+[    4.262458] [c6] arp_tables: (C) 2002 David S. Miller
+[    4.266942] [c6] TCP: cubic registered
+[    4.270471] [c6] Initializing XFRM netlink socket
+[    4.278149] [c6] NET: Registered protocol family 10
+[    4.282622] [c7] smsc95xx 1-1.1:1.0 eth0: register 'smsc95xx' at usb-12110000.usb-1.1, smsc95xx USB 2.0 Ethernet, 02:2f:19:fc:79:e0
+[    4.284771] [c6] mip6: Mobile IPv6
+[    4.284791] [c6] sit: IPv6 over IPv4 tunneling driver
+[    4.290285] [c6] NET: Registered protocol family 17
+[    4.290384] [c6] NET: Registered protocol family 15
+[    4.290471] [c6] NET: Registered protocol family 35
+[    4.316368] [c6] VFP support v0.3: implementor 41 architecture 4 part 30 variant f rev 0
+[    4.324555] [c6] Registering SWP/SWPB emulation handler
+[    4.326841] [c4] mmc_host mmc1: Bus speed (slot 0) = 166500000Hz (slot req 400000Hz, actual 398325HZ div = 209)
+[    4.326906] [c4] mmc_host mmc1: Bus speed (slot 0) = 166500000Hz (slot req 166500000Hz, actual 166500000HZ div = 0)
+[    4.329995] [c4] dwmmc_exynos 12220000.dwmmc2: sample_good: 0x ff best_sample: 0x ffffffff
+[    4.330009] [c4] dwmmc_exynos 12220000.dwmmc2: Clock GPIO Drive Strength Value: 0x0
+[    4.330742] [c0] dwmmc_exynos 12220000.dwmmc2: data CRC error
+[    4.330843] [c4] mmc_host mmc1: Tuning error: cmd.error:0, data.error:-84
+[    4.333130] [c4] dwmmc_exynos 12220000.dwmmc2: sample_good: 0x fb best_sample: 0x 06
+[    4.333187] [c4] mmc1: new ultra high speed SDR104 SDXC card at address 0001
+[    4.334854] [c7] mmcblk0: mmc1:0001 SD 58.2 GiB 
+[    4.337699] [c7]  mmcblk0: p1 p2
+[    4.358804] [c7] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 400000Hz, actual 385416HZ div = 27)
+[    4.398976] [c7] usb 1-1.4: new high-speed USB device number 4 using s5p-ehci
+[    4.413783] [c5] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 300000Hz, actual 297321HZ div = 35)
+[    4.428023] [c6] SRAM ASV group [2] : MIF(950000), G3D(975000)
+[    4.444531] [c6] registered taskstats version 1
+[    4.447790] [c6] hdmi-en: disabling
+[    4.451148] [c6] MAIN_DC: disabling
+[    4.454665] [c6] VUSB_BOOST_5V: disabling
+[    4.458545] [c6] regulator-dummy: disabling
+[    4.464687] [c6] input: gpio_keys.7 as /devices/gpio_keys.7/input/input0
+[    4.468826] [c7] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 200000Hz, actual 196344HZ div = 53)
+[    4.482888] [c6] s2m_rtc_read_time: 2013/1/1 0:0:1(2)
+[    4.486627] [c6] s2m-rtc s2m-rtc: setting system clock to 2013-01-01 00:00:01 UTC (1356998401)
+[    4.495205] [c6] CPUFREQ of CA7  L0 : 1300000 uV
+[    4.499726] [c6] CPUFREQ of CA7  L0 : ABB 8
+[    4.503879] [c6] CPUFREQ of CA7  L1 : 1300000 uV
+[    4.508431] [c6] CPUFREQ of CA7  L1 : ABB 2
+[    4.512666] [c6] CPUFREQ of CA7  L2 : 1250000 uV
+[    4.517252] [c6] CPUFREQ of CA7  L2 : ABB 2
+[    4.521433] [c6] CPUFREQ of CA7  L3 : 1200000 uV
+[    4.526015] [c6] CPUFREQ of CA7  L3 : ABB 2
+[    4.530199] [c6] CPUFREQ of CA7  L4 : 1150000 uV
+[    4.533801] [c5] mmc_host mmc0: Bus speed (slot 0) = 20812500Hz (slot req 100000Hz, actual 99107HZ div = 105)
+[    4.544708] [c6] CPUFREQ of CA7  L4 : ABB 2
+[    4.548841] [c6] CPUFREQ of CA7  L5 : 1112500 uV
+[    4.553375] [c6] CPUFREQ of CA7  L5 : ABB 2
+[    4.557607] [c6] CPUFREQ of CA7  L6 : 1075000 uV
+[    4.562231] [c6] CPUFREQ of CA7  L6 : ABB 2
+[    4.566365] [c6] CPUFREQ of CA7  L7 : 1037500 uV
+[    4.570964] [c6] CPUFREQ of CA7  L7 : ABB 2
+[    4.575129] [c6] CPUFREQ of CA7  L8 : 1000000 uV
+[    4.579723] [c6] CPUFREQ of CA7  L8 : ABB 255
+[    4.584068] [c6] CPUFREQ of CA7  L9 : 962500 uV
+[    4.588516] [c6] CPUFREQ of CA7  L9 : ABB 255
+[    4.592911] [c6] CPUFREQ of CA7  L10 : 925000 uV
+[    4.597510] [c6] CPUFREQ of CA7  L10 : ABB 255
+[    4.601934] [c6] CPUFREQ of CA7  L11 : 900000 uV
+[    4.606538] [c6] CPUFREQ of CA7  L11 : ABB 255
+[    4.610958] [c6] CPUFREQ of CA7  L12 : 900000 uV
+[    4.615561] [c6] CPUFREQ of CA7  L12 : ABB 255
+[    4.619985] [c6] CPUFREQ of CA7  L13 : 900000 uV
+[    4.624584] [c6] CPUFREQ of CA7  L13 : ABB 255
+[    4.629009] [c6] CPUFREQ of CA7  L14 : 900000 uV
+[    4.633548] [c6] CPUFREQ of CA7  L14 : ABB 255
+[    4.638379] [c6] kfc clock[800000], mx_mspll clock[666000]
+[    4.643515] [c6] [SET_EMA_TEST] volt : 887500  value : 0x44
+[    4.649057] [c6] [SET_EMA_TEST] volt : 937500  value : 0x44
+[    4.654609] [c6] [SET_EMA_TEST] volt : 1032500  value : 0x33
+[    4.660248] [c6] [SET_EMA_TEST] volt : 1142500  value : 0x11
+[    4.665890] [c6] [SET_EMA_TEST] volt : 1167500  value : 0x11
+[    4.671531] [c6] CPUFREQ of CA15 L0 : 1362500 uV
+[    4.676125] [c6] CPUFREQ of CA15  L0 : ABB 8
+[    4.680375] [c6] CPUFREQ of CA15 L1 : 1362500 uV
+[    4.684975] [c6] CPUFREQ of CA15  L1 : ABB 8
+[    4.689225] [c6] CPUFREQ of CA15 L2 : 1362500 uV
+[    4.693824] [c6] CPUFREQ of CA15  L2 : ABB 8
+[    4.698015] [c6] CPUFREQ of CA15 L3 : 1350000 uV
+[    4.702674] [c6] CPUFREQ of CA15  L3 : ABB 255
+[    4.707105] [c6] CPUFREQ of CA15 L4 : 1300000 uV
+[    4.711701] [c6] CPUFREQ of CA15  L4 : ABB 255
+[    4.716123] [c6] CPUFREQ of CA15 L5 : 1225000 uV
+[    4.720722] [c6] CPUFREQ of CA15  L5 : ABB 255
+[    4.725147] [c6] CPUFREQ of CA15 L6 : 1175000 uV
+[    4.729746] [c6] CPUFREQ of CA15  L6 : ABB 255
+[    4.734174] [c6] CPUFREQ of CA15 L7 : 1137500 uV
+[    4.738770] [c6] CPUFREQ of CA15  L7 : ABB 255
+[    4.743134] [c6] CPUFREQ of CA15 L8 : 1100000 uV
+[    4.747793] [c6] CPUFREQ of CA15  L8 : ABB 255
+[    4.752218] [c6] CPUFREQ of CA15 L9 : 1062500 uV
+[    4.756817] [c6] CPUFREQ of CA15  L9 : ABB 255
+[    4.761241] [c6] CPUFREQ of CA15 L10 : 1037500 uV
+[    4.765928] [c6] CPUFREQ of CA15  L10 : ABB 255
+[    4.770440] [c6] CPUFREQ of CA15 L11 : 1025000 uV
+[    4.775125] [c6] CPUFREQ of CA15  L11 : ABB 255
+[    4.779636] [c6] CPUFREQ of CA15 L12 : 1000000 uV
+[    4.784323] [c6] CPUFREQ of CA15  L12 : ABB 255
+[    4.788835] [c6] CPUFREQ of CA15 L13 : 975000 uV
+[    4.793372] [c6] CPUFREQ of CA15  L13 : ABB 255
+[    4.797943] [c6] CPUFREQ of CA15 L14 : 950000 uV
+[    4.802543] [c6] CPUFREQ of CA15  L14 : ABB 255
+[    4.807055] [c6] CPUFREQ of CA15 L15 : 925000 uV
+[    4.811653] [c6] CPUFREQ of CA15  L15 : ABB 255
+[    4.816165] [c6] CPUFREQ of CA15 L16 : 900000 uV
+[    4.820764] [c6] CPUFREQ of CA15  L16 : ABB 255
+[    4.825276] [c6] CPUFREQ of CA15 L17 : 900000 uV
+[    4.829875] [c6] CPUFREQ of CA15  L17 : ABB 255
+[    4.834390] [c6] CPUFREQ of CA15 L18 : 900000 uV
+[    4.838982] [c6] CPUFREQ of CA15  L18 : ABB 255
+[    4.843437] [c6] CPUFREQ of CA15 L19 : 900000 uV
+[    4.848095] [c6] CPUFREQ of CA15  L19 : ABB 255
+[    4.852608] [c6] CPUFREQ of CA15 L20 : 900000 uV
+[    4.857206] [c6] CPUFREQ of CA15  L20 : ABB 255
+[    4.861718] [c6] CPUFREQ of CA15 L21 : 900000 uV
+[    4.866316] [c6] CPUFREQ of CA15  L21 : ABB 255
+[    4.870830] [c6] CPUFREQ of CA15 L22 : 900000 uV
+[    4.875428] [c6] CPUFREQ of CA15  L22 : ABB 255
+[    4.880303] [c6] eagle clock[800000], mpll clock[800000]
+[    4.890097] [c4] Exynos: Kernel Thermal management registered
+[    4.894818] [c4] ### dt-test ### No testcase data in device tree; not running tests
+[    4.938539] [c5] MIF 825000Khz ASV is 975000uV
+[    4.941609] [c5] DEVFREQ(MIF) : 825000Khz, ABB 14
+[    4.946242] [c5] MIF 728000Khz ASV is 937500uV
+[    4.950656] [c5] DEVFREQ(MIF) : 728000Khz, ABB 14
+[    4.955336] [c5] MIF 633000Khz ASV is 900000uV
+[    4.959763] [c5] DEVFREQ(MIF) : 633000Khz, ABB 14
+[    4.964444] [c5] MIF 543000Khz ASV is 875000uV
+[    4.968871] [c5] DEVFREQ(MIF) : 543000Khz, ABB 14
+[    4.973522] [c5] MIF 413000Khz ASV is 812500uV
+[    4.977982] [c5] DEVFREQ(MIF) : 413000Khz, ABB 14
+[    4.982666] [c5] MIF 275000Khz ASV is 787500uV
+[    4.987095] [c5] DEVFREQ(MIF) : 275000Khz, ABB 14
+[    4.991778] [c5] MIF 206000Khz ASV is 787500uV
+[    4.996202] [c5] DEVFREQ(MIF) : 206000Khz, ABB 14
+[    5.000887] [c5] MIF 165000Khz ASV is 787500uV
+[    5.005313] [c5] DEVFREQ(MIF) : 165000Khz, ABB 14
+[    5.009997] [c5] MIF 138000Khz ASV is 787500uV
+[    5.014425] [c5] DEVFREQ(MIF) : 138000Khz, ABB 14
+[    5.020432] [c5] MIF: set ASV freq 825000, voltage 975000
+[    5.025607] [c5] INT 600000Khz ASV is 962500uV
+[    5.028924] [c5] DEVFREQ(INT) : 600000Khz, ABB 255
+[    5.033692] [c5] INT 500000Khz ASV is 950000uV
+[    5.038078] [c5] DEVFREQ(INT) : 500000Khz, ABB 255
+[    5.042881] [c5] INT 480000Khz ASV is 950000uV
+[    5.047308] [c5] DEVFREQ(INT) : 480000Khz, ABB 255
+[    5.052087] [c5] INT 460000Khz ASV is 950000uV
+[    5.056506] [c5] DEVFREQ(INT) : 460000Khz, ABB 255
+[    5.061291] [c5] INT 440000Khz ASV is 950000uV
+[    5.065702] [c5] DEVFREQ(INT) : 440000Khz, ABB 255
+[    5.070471] [c5] INT 420000Khz ASV is 950000uV
+[    5.074901] [c5] DEVFREQ(INT) : 420000Khz, ABB 255
+[    5.079668] [c5] INT 400000Khz ASV is 912500uV
+[    5.084098] [c5] DEVFREQ(INT) : 400000Khz, ABB 255
+[    5.088868] [c5] INT 333000Khz ASV is 887500uV
+[    5.093262] [c5] DEVFREQ(INT) : 333000Khz, ABB 255
+[    5.098066] [c5] INT 222000Khz ASV is 862500uV
+[    5.102493] [c5] DEVFREQ(INT) : 222000Khz, ABB 255
+[    5.107262] [c5] INT 111000Khz ASV is 850000uV
+[    5.111688] [c5] DEVFREQ(INT) : 111000Khz, ABB 14
+[    5.116372] [c5] INT 83000Khz ASV is 850000uV
+[    5.120712] [c5] DEVFREQ(INT) : 83000Khz, ABB 14
+[    6.128663] [c5] PM DOMAIN: Power off unused power domains.
+[    6.133187] [c5] ALSA device list:
+[    6.136211] [c5] pd-gscl: Power-off latency exceeded, new value 3044208 ns
+[    6.143039] [c5]   #0: odroid-audio
+[    6.147591] [c5] Freeing unused kernel memory: 416K (c0851000 - c08b9000)
+[    6.153596] [c6] Failed to execute /init
+[    6.157311] [c6] Kernel panic - not syncing: No init found.  Try passing init= option to kernel. See Linux Documentation/init.txt for guidance.
+[    6.169998] [c6] CPU: 6 PID: 1 Comm: swapper/0 Not tainted 3.10.72+ #1
+[    6.176495] [c6] Backtrace: 
+[    6.179360] [c6] [<c0012d84>] (dump_backtrace+0x0/0x114) from [<c0012ff4>] (show_stack+0x20/0x24)
+[    6.188211] [c6]  r7:00000000 r6:00000000 r5:c08c63d0 r4:c08c63d0
+[    6.194280] [c6] [<c0012fd4>] (show_stack+0x0/0x24) from [<c05e3abc>] (dump_stack+0x24/0x28)
+[    6.202703] [c6] [<c05e3a98>] (dump_stack+0x0/0x28) from [<c05e2cc8>] (panic+0xac/0x210)
+[    6.210774] [c6] [<c05e2c1c>] (panic+0x0/0x210) from [<c05ddee4>] (kernel_init+0x160/0x164)
+[    6.219099] [c6]  r3:00000001 r2:c08bb714 r1:01520000 r0:c07964f0
+[    6.225164] [c6]  r7:00000000
+[    6.228120] [c6] [<c05ddd84>] (kernel_init+0x0/0x164) from [<c000e818>] (ret_from_fork+0x14/0x20)
+[    6.236974] [c6]  r5:c05ddd84 r4:00000000
+[    6.240956] [c6] 
+[    6.242866] [c6]  -----------------------------------------------------------------------------------
+[    6.252071] [c6]  **** CPU PMU register dump ****
+[    6.256754] [c6] [0]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.263350] [c6] [1]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.269944] [c6] [2]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.276538] [c6] [3]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.283132] [c6] [4]   CONFIG : 0x3  STATUS : 0x40003  OPTION : 0x10002
+[    6.289727] [c6] [5]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.296321] [c6] [6]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.302915] [c6] [7]   CONFIG : 0x3  STATUS : 0x40303  OPTION : 0x10002
+[    6.309510] [c6]  **** EGL NONCPU CONFIG : 0x3  STATUS : 0x60003  OPTION : 0x60001382
+[    6.317321] [c6]       EGL L2 CONFIG : 0x3  STATUS : 0x3  OPTION : 0x0
+[    6.323830] [c6]  **** KFC NONCPU CONFIG : 0x3  STATUS : 0x60003  OPTION : 0x1102
+[    6.331290] [c6]       KFC L2 CONFIG : 0x3  STATUS : 0x3  OPTION : 0x0
+[    6.337793] [c6]  **** LOCAL BLOCK POWER ****
+[    6.342132] [c6]   - SCALER  CONFIG : 0x0  STATUS : 0x130000  OPTION : 0x2
+[    6.348989] [c6]   - ISP  CONFIG : 0x0  STATUS : 0x130000  OPTION : 0x2
+[    6.355583] [c6]   - MFC  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x2
+[    6.362091] [c6]   - G3D  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x2
+[    6.368598] [c6]   - DISP1  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x2
+[    6.375280] [c6]   - MAU  CONFIG : 0x0  STATUS : 0x130000  OPTION : 0x2
+[    6.381873] [c6]   - G2D  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x2
+[    6.388381] [c6]   - MSC  CONFIG : 0x0  STATUS : 0x130000  OPTION : 0x2
+[    6.394975] [c6]   - FSYS  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x1
+[    6.401569] [c6]   - FSYS2  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x1
+[    6.408250] [c6]   - PSGEN  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x1
+[    6.414932] [c6]   - PERIC  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x1
+[    6.421613] [c6]   - WCORE  CONFIG : 0x7  STATUS : 0x60007  OPTION : 0x1
+[    6.428292] [c6]  -----------------------------------------------------------------------------------
+[    6.437492] [c6] 
+[    6.439393] [c6]  -----------------------------------------------------------------------------------
+[    6.448598] [c6]  **** CMU register dump ****
+[    6.452932] [c6]   - APLL_CON0  : 0xa0fa0300
+[    6.457183] [c6]   - KPLL_CON0  : 0xa0af0300
+[    6.461435] [c6]   - BPLL_CON0  : 0xa1130401
+[    6.465686] [c6]   - CPLL_CON0  : 0xa06f0201
+[    6.469938] [c6]   - DPLL_CON0  : 0xa0640201
+[    6.474190] [c6]   - IPLL_CON0  : 0xa0900202
+[    6.478441] [c6]   - MPLL_CON0  : 0xa10a0302
+[    6.482693] [c6]   - SPLL_CON0  : 0xa0c80301
+[    6.486945] [c6]   - VPLL_CON0  : 0xa0c80202
+[    6.491196] [c6]   - EPLL_CON0  : 0xa12d0503
+[    6.495447] [c6]   - RPLL_CON0  : 0xb00205
+[    6.499525] [c6]  -----------------------------------------------------------------------------------
+[    6.508731] [c6] Sched Debug Version: v0.10, 3.10.72+ #1
+[    6.514017] [c6] ktime                                   : 6490.103458
+[    6.520526] [c6] sched_clk                               : 6508.728000
+[    6.527032] [c6] cpu_clk                                 : 6508.728667
+[    6.533540] [c6] jiffies                                 : 4294908598
+[    6.539960] [c6] 
+[    6.541864] [c6] sysctl_sched
+[    6.544817] [c6]   .sysctl_sched_latency                    : 24.000000
+[    6.551415] [c6]   .sysctl_sched_min_granularity            : 3.000000
+[    6.557922] [c6]   .sysctl_sched_wakeup_granularity         : 4.000000
+[    6.564429] [c6]   .sysctl_sched_child_runs_first           : 0
+[    6.570329] [c6]   .sysctl_sched_features                   : 11899
+[    6.576576] [c6]   .sysctl_sched_tunable_scaling            : 1 (logaritmic)
+[    6.583604] [c6] 
+[    6.585509] [c6] cpu#0
+[    6.587852] [c6]   .nr_running                    : 0
+[    6.592887] [c6]   .load                          : 0
+[    6.597920] [c6]   .nr_switches                   : 386
+[    6.603125] [c6]   .nr_load_updates               : 129
+[    6.608331] [c6]   .nr_uninterruptible            : 0
+[    6.613364] [c6]   .next_balance                  : 4294.908612
+[    6.619265] [c6]   .curr->pid                     : 0
+[    6.624297] [c6]   .clock                         : 6593.758875
+[    6.630197] [c6]   .cpu_load[0]                   : 0
+[    6.635229] [c6]   .cpu_load[1]                   : 0
+[    6.640262] [c6]   .cpu_load[2]                   : 0
+[    6.645294] [c6]   .cpu_load[3]                   : 0
+[    6.650326] [c6]   .cpu_load[4]                   : 0
+[    6.655377] [c6] 
+[    6.655377] cfs_rq[0]:/
+[    6.659699] [c6]   .exec_clock                    : 0.000000
+[    6.665339] [c6]   .MIN_vruntime                  : 0.000001
+[    6.670978] [c6]   .min_vruntime                  : 249.810708
+[    6.676791] [c6]   .max_vruntime                  : 0.000001
+[    6.682431] [c6]   .spread                        : 0.000000
+[    6.688071] [c6]   .spread0                       : 0.000000
+[    6.693711] [c6]   .nr_spread_over                : 0
+[    6.698742] [c6]   .nr_running                    : 0
+[    6.703775] [c6]   .load                          : 0
+[    6.708807] [c6]   .runnable_load_avg             : 0
+[    6.713840] [c6]   .blocked_load_avg              : 0
+[    6.718873] [c6]   .tg_load_avg                   : 1024
+[    6.724165] [c6]   .tg_load_contrib               : 0
+[    6.729197] [c6]   .tg_runnable_contrib           : 2
+[    6.734230] [c6]   .tg->runnable_avg              : 85
+[    6.739349] [c6]   .tg->usage_avg                 : 86
+[    6.744469] [c6]   .avg->runnable_avg_sum         : 105
+[    6.749675] [c6]   .avg->runnable_avg_period      : 47377
+[    6.755055] [c6] 
+[    6.755055] rt_rq[0]:/
+[    6.759306] [c6]   .rt_nr_running                 : 0
+[    6.764338] [c6]   .rt_throttled                  : 0
+[    6.769371] [c6]   .rt_time                       : 0.000000
+[    6.775011] [c6]   .rt_runtime                    : 950.000000
+[    6.780827] [c6] 
+[    6.780827] runnable tasks:
+[    6.780827]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    6.780827] ----------------------------------------------------------------------------------------------------------
+[    6.806891] [c6] 
+[    6.808760] [c6] cpu#1
+[    6.811103] [c6]   .nr_running                    : 0
+[    6.816138] [c6]   .load                          : 0
+[    6.821171] [c6]   .nr_switches                   : 73
+[    6.826290] [c6]   .nr_load_updates               : 86
+[    6.831409] [c6]   .nr_uninterruptible            : -1
+[    6.836529] [c6]   .next_balance                  : 4294.908521
+[    6.842429] [c6]   .curr->pid                     : 0
+[    6.847461] [c6]   .clock                         : 6143.040583
+[    6.853362] [c6]   .cpu_load[0]                   : 0
+[    6.858394] [c6]   .cpu_load[1]                   : 0
+[    6.863426] [c6]   .cpu_load[2]                   : 0
+[    6.868458] [c6]   .cpu_load[3]                   : 0
+[    6.873491] [c6]   .cpu_load[4]                   : 0
+[    6.878524] [c6] 
+[    6.878524] cfs_rq[1]:/
+[    6.882862] [c6]   .exec_clock                    : 0.000000
+[    6.888503] [c6]   .MIN_vruntime                  : 0.000001
+[    6.894142] [c6]   .min_vruntime                  : 0.309151
+[    6.899782] [c6]   .max_vruntime                  : 0.000001
+[    6.905422] [c6]   .spread                        : 0.000000
+[    6.911062] [c6]   .spread0                       : -250.119859
+[    6.916962] [c6]   .nr_spread_over                : 0
+[    6.921993] [c6]   .nr_running                    : 0
+[    6.927026] [c6]   .load                          : 0
+[    6.932058] [c6]   .runnable_load_avg             : 0
+[    6.937091] [c6]   .blocked_load_avg              : 0
+[    6.942123] [c6]   .tg_load_avg                   : 1026
+[    6.947416] [c6]   .tg_load_contrib               : 0
+[    6.952449] [c6]   .tg_runnable_contrib           : 0
+[    6.957481] [c6]   .tg->runnable_avg              : 90
+[    6.962601] [c6]   .tg->usage_avg                 : 90
+[    6.967720] [c6]   .avg->runnable_avg_sum         : 0
+[    6.972752] [c6]   .avg->runnable_avg_period      : 48070
+[    6.978132] [c6] 
+[    6.978132] rt_rq[1]:/
+[    6.982384] [c6]   .rt_nr_running                 : 0
+[    6.987416] [c6]   .rt_throttled                  : 0
+[    6.992449] [c6]   .rt_time                       : 0.000000
+[    6.998089] [c6]   .rt_runtime                    : 950.000000
+[    7.003903] [c6] 
+[    7.003903] runnable tasks:
+[    7.003903]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    7.003903] ----------------------------------------------------------------------------------------------------------
+[    7.029959] [c6] 
+[    7.031838] [c6] cpu#2
+[    7.034181] [c6]   .nr_running                    : 0
+[    7.039216] [c6]   .load                          : 0
+[    7.044248] [c6]   .nr_switches                   : 75
+[    7.049368] [c6]   .nr_load_updates               : 84
+[    7.054487] [c6]   .nr_uninterruptible            : -1
+[    7.059607] [c6]   .next_balance                  : 4294.908521
+[    7.065507] [c6]   .curr->pid                     : 0
+[    7.070539] [c6]   .clock                         : 6143.046875
+[    7.076439] [c6]   .cpu_load[0]                   : 0
+[    7.081471] [c6]   .cpu_load[1]                   : 0
+[    7.086503] [c6]   .cpu_load[2]                   : 0
+[    7.091536] [c6]   .cpu_load[3]                   : 0
+[    7.096569] [c6]   .cpu_load[4]                   : 0
+[    7.101602] [c6] 
+[    7.101602] cfs_rq[2]:/
+[    7.105940] [c6]   .exec_clock                    : 0.000000
+[    7.111581] [c6]   .MIN_vruntime                  : 0.000001
+[    7.117220] [c6]   .min_vruntime                  : 0.287636
+[    7.122860] [c6]   .max_vruntime                  : 0.000001
+[    7.128500] [c6]   .spread                        : 0.000000
+[    7.134140] [c6]   .spread0                       : -250.098344
+[    7.140040] [c6]   .nr_spread_over                : 0
+[    7.145071] [c6]   .nr_running                    : 0
+[    7.150104] [c6]   .load                          : 0
+[    7.155136] [c6]   .runnable_load_avg             : 0
+[    7.160169] [c6]   .blocked_load_avg              : 0
+[    7.165201] [c6]   .tg_load_avg                   : 1026
+[    7.170495] [c6]   .tg_load_contrib               : 0
+[    7.175526] [c6]   .tg_runnable_contrib           : 0
+[    7.180559] [c6]   .tg->runnable_avg              : 89
+[    7.185678] [c6]   .tg->usage_avg                 : 88
+[    7.190798] [c6]   .avg->runnable_avg_sum         : 0
+[    7.195830] [c6]   .avg->runnable_avg_period      : 48077
+[    7.201211] [c6] 
+[    7.201211] rt_rq[2]:/
+[    7.205461] [c6]   .rt_nr_running                 : 0
+[    7.210494] [c6]   .rt_throttled                  : 0
+[    7.215526] [c6]   .rt_time                       : 0.000000
+[    7.221167] [c6]   .rt_runtime                    : 950.000000
+[    7.226981] [c6] 
+[    7.226981] runnable tasks:
+[    7.226981]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    7.226981] ----------------------------------------------------------------------------------------------------------
+[    7.253036] [c6] 
+[    7.254915] [c6] cpu#3
+[    7.257258] [c6]   .nr_running                    : 0
+[    7.262294] [c6]   .load                          : 0
+[    7.267326] [c6]   .nr_switches                   : 79
+[    7.272446] [c6]   .nr_load_updates               : 82
+[    7.277565] [c6]   .nr_uninterruptible            : -1
+[    7.282684] [c6]   .next_balance                  : 4294.908521
+[    7.288585] [c6]   .curr->pid                     : 0
+[    7.293617] [c6]   .clock                         : 6143.054625
+[    7.299518] [c6]   .cpu_load[0]                   : 0
+[    7.304549] [c6]   .cpu_load[1]                   : 0
+[    7.309582] [c6]   .cpu_load[2]                   : 0
+[    7.314614] [c6]   .cpu_load[3]                   : 0
+[    7.319647] [c6]   .cpu_load[4]                   : 0
+[    7.324680] [c6] 
+[    7.324680] cfs_rq[3]:/
+[    7.329018] [c6]   .exec_clock                    : 0.000000
+[    7.334659] [c6]   .MIN_vruntime                  : 0.000001
+[    7.340298] [c6]   .min_vruntime                  : 24.420245
+[    7.346025] [c6]   .max_vruntime                  : 0.000001
+[    7.351664] [c6]   .spread                        : 0.000000
+[    7.357304] [c6]   .spread0                       : -225.390463
+[    7.363204] [c6]   .nr_spread_over                : 0
+[    7.368236] [c6]   .nr_running                    : 0
+[    7.373268] [c6]   .load                          : 0
+[    7.378301] [c6]   .runnable_load_avg             : 0
+[    7.383333] [c6]   .blocked_load_avg              : 0
+[    7.388366] [c6]   .tg_load_avg                   : 1027
+[    7.393659] [c6]   .tg_load_contrib               : 0
+[    7.398692] [c6]   .tg_runnable_contrib           : 0
+[    7.403724] [c6]   .tg->runnable_avg              : 90
+[    7.408843] [c6]   .tg->usage_avg                 : 89
+[    7.413962] [c6]   .avg->runnable_avg_sum         : 0
+[    7.418994] [c6]   .avg->runnable_avg_period      : 48085
+[    7.424375] [c6] 
+[    7.424375] rt_rq[3]:/
+[    7.428626] [c6]   .rt_nr_running                 : 0
+[    7.433659] [c6]   .rt_throttled                  : 0
+[    7.438692] [c6]   .rt_time                       : 0.000000
+[    7.444331] [c6]   .rt_runtime                    : 950.000000
+[    7.450146] [c6] 
+[    7.450146] runnable tasks:
+[    7.450146]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    7.450146] ----------------------------------------------------------------------------------------------------------
+[    7.476201] [c6] 
+[    7.478080] [c6] cpu#4
+[    7.480423] [c6]   .nr_running                    : 0
+[    7.485458] [c6]   .load                          : 0
+[    7.490491] [c6]   .nr_switches                   : 3601
+[    7.495784] [c6]   .nr_load_updates               : 544
+[    7.500990] [c6]   .nr_uninterruptible            : 7
+[    7.506022] [c6]   .next_balance                  : 4294.908671
+[    7.511923] [c6]   .curr->pid                     : 0
+[    7.516955] [c6]   .clock                         : 6888.879167
+[    7.522856] [c6]   .cpu_load[0]                   : 0
+[    7.527887] [c6]   .cpu_load[1]                   : 0
+[    7.532920] [c6]   .cpu_load[2]                   : 0
+[    7.537952] [c6]   .cpu_load[3]                   : 0
+[    7.542984] [c6]   .cpu_load[4]                   : 0
+[    7.548018] [c6] 
+[    7.548018] cfs_rq[4]:/
+[    7.552356] [c6]   .exec_clock                    : 0.000000
+[    7.557997] [c6]   .MIN_vruntime                  : 0.000001
+[    7.563638] [c6]   .min_vruntime                  : 15532.476952
+[    7.569623] [c6]   .max_vruntime                  : 0.000001
+[    7.575262] [c6]   .spread                        : 0.000000
+[    7.580903] [c6]   .spread0                       : 15282.666244
+[    7.586889] [c6]   .nr_spread_over                : 0
+[    7.591921] [c6]   .nr_running                    : 0
+[    7.596953] [c6]   .load                          : 0
+[    7.601986] [c6]   .runnable_load_avg             : 0
+[    7.607018] [c6]   .blocked_load_avg              : 0
+[    7.612051] [c6]   .tg_load_avg                   : 1027
+[    7.617344] [c6]   .tg_load_contrib               : 0
+[    7.622376] [c6]   .tg_runnable_contrib           : 3
+[    7.627409] [c6]   .tg->runnable_avg              : 90
+[    7.632528] [c6]   .tg->usage_avg                 : 89
+[    7.637647] [c6]   .avg->runnable_avg_sum         : 170
+[    7.642853] [c6]   .avg->runnable_avg_period      : 47392
+[    7.648233] [c6] 
+[    7.648233] rt_rq[4]:/
+[    7.652484] [c6]   .rt_nr_running                 : 0
+[    7.657517] [c6]   .rt_throttled                  : 0
+[    7.662550] [c6]   .rt_time                       : 0.000000
+[    7.668190] [c6]   .rt_runtime                    : 950.000000
+[    7.674004] [c6] 
+[    7.674004] runnable tasks:
+[    7.674004]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    7.674004] ----------------------------------------------------------------------------------------------------------
+[    7.700059] [c6] 
+[    7.701939] [c6] cpu#5
+[    7.704282] [c6]   .nr_running                    : 0
+[    7.709317] [c6]   .load                          : 0
+[    7.714349] [c6]   .nr_switches                   : 5854
+[    7.719642] [c6]   .nr_load_updates               : 917
+[    7.724848] [c6]   .nr_uninterruptible            : -5
+[    7.729968] [c6]   .next_balance                  : 4294.908839
+[    7.735868] [c6]   .curr->pid                     : 0
+[    7.740900] [c6]   .clock                         : 7738.689375
+[    7.746801] [c6]   .cpu_load[0]                   : 0
+[    7.751832] [c6]   .cpu_load[1]                   : 0
+[    7.756865] [c6]   .cpu_load[2]                   : 0
+[    7.761897] [c6]   .cpu_load[3]                   : 0
+[    7.766930] [c6]   .cpu_load[4]                   : 0
+[    7.771963] [c6] 
+[    7.771963] cfs_rq[5]:/
+[    7.776301] [c6]   .exec_clock                    : 0.000000
+[    7.781943] [c6]   .MIN_vruntime                  : 0.000001
+[    7.787581] [c6]   .min_vruntime                  : 2190.271828
+[    7.793482] [c6]   .max_vruntime                  : 0.000001
+[    7.799121] [c6]   .spread                        : 0.000000
+[    7.804761] [c6]   .spread0                       : 1940.461120
+[    7.810661] [c6]   .nr_spread_over                : 0
+[    7.815693] [c6]   .nr_running                    : 0
+[    7.820725] [c6]   .load                          : 0
+[    7.825758] [c6]   .runnable_load_avg             : 0
+[    7.830790] [c6]   .blocked_load_avg              : 1
+[    7.835823] [c6]   .tg_load_avg                   : 1027
+[    7.841116] [c6]   .tg_load_contrib               : 2
+[    7.846148] [c6]   .tg_runnable_contrib           : 4
+[    7.851181] [c6]   .tg->runnable_avg              : 88
+[    7.856300] [c6]   .tg->usage_avg                 : 88
+[    7.861419] [c6]   .avg->runnable_avg_sum         : 187
+[    7.866625] [c6]   .avg->runnable_avg_period      : 47576
+[    7.872005] [c6] 
+[    7.872005] rt_rq[5]:/
+[    7.876256] [c6]   .rt_nr_running                 : 0
+[    7.881289] [c6]   .rt_throttled                  : 0
+[    7.886322] [c6]   .rt_time                       : 0.000000
+[    7.891962] [c6]   .rt_runtime                    : 950.000000
+[    7.897776] [c6] 
+[    7.897776] runnable tasks:
+[    7.897776]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    7.897776] ----------------------------------------------------------------------------------------------------------
+[    7.923831] [c6] 
+[    7.925710] [c6] cpu#6
+[    7.928054] [c6]   .nr_running                    : 1
+[    7.933089] [c6]   .load                          : 1024
+[    7.938382] [c6]   .nr_switches                   : 3120
+[    7.943674] [c6]   .nr_load_updates               : 459
+[    7.948880] [c6]   .nr_uninterruptible            : 3
+[    7.953913] [c6]   .next_balance                  : 4294.908546
+[    7.959814] [c6]   .curr->pid                     : 1
+[    7.964846] [c6]   .clock                         : 6157.201208
+[    7.970746] [c6]   .cpu_load[0]                   : 1024
+[    7.976039] [c6]   .cpu_load[1]                   : 512
+[    7.981245] [c6]   .cpu_load[2]                   : 256
+[    7.986450] [c6]   .cpu_load[3]                   : 128
+[    7.991656] [c6]   .cpu_load[4]                   : 64
+[    7.996777] [c6] 
+[    7.996777] cfs_rq[6]:/
+[    8.001114] [c6]   .exec_clock                    : 0.000000
+[    8.006755] [c6]   .MIN_vruntime                  : 0.000001
+[    8.012394] [c6]   .min_vruntime                  : 2651.847534
+[    8.018295] [c6]   .max_vruntime                  : 0.000001
+[    8.023934] [c6]   .spread                        : 0.000000
+[    8.029574] [c6]   .spread0                       : 2402.036826
+[    8.035474] [c6]   .nr_spread_over                : 0
+[    8.040506] [c6]   .nr_running                    : 1
+[    8.045538] [c6]   .load                          : 1024
+[    8.050832] [c6]   .runnable_load_avg             : 1023
+[    8.056124] [c6]   .blocked_load_avg              : 0
+[    8.061157] [c6]   .tg_load_avg                   : 1027
+[    8.066450] [c6]   .tg_load_contrib               : 1023
+[    8.071742] [c6]   .tg_runnable_contrib           : 76
+[    8.076861] [c6]   .tg->runnable_avg              : 88
+[    8.081981] [c6]   .tg->usage_avg                 : 88
+[    8.087100] [c6]   .avg->runnable_avg_sum         : 3665
+[    8.092393] [c6]   .avg->runnable_avg_period      : 48202
+[    8.097773] [c6] 
+[    8.097773] rt_rq[6]:/
+[    8.102024] [c6]   .rt_nr_running                 : 0
+[    8.107056] [c6]   .rt_throttled                  : 0
+[    8.112089] [c6]   .rt_time                       : 0.000000
+[    8.117729] [c6]   .rt_runtime                    : 950.000000
+[    8.123543] [c6] 
+[    8.123543] runnable tasks:
+[    8.123543]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    8.123543] ----------------------------------------------------------------------------------------------------------
+[    8.149596] [c6] R      swapper/0     1      2651.847534      2393   120               0               0               0.000000               0.000000               0.000000 /
+[    8.165189] [c6] 
+[    8.167096] [c6] cpu#7
+[    8.169439] [c6]   .nr_running                    : 0
+[    8.174474] [c6]   .load                          : 0
+[    8.179507] [c6]   .nr_switches                   : 4072
+[    8.184800] [c6]   .nr_load_updates               : 762
+[    8.190006] [c6]   .nr_uninterruptible            : -2
+[    8.195125] [c6]   .next_balance                  : 4294.908918
+[    8.201026] [c6]   .curr->pid                     : 0
+[    8.206058] [c6]   .clock                         : 8198.709708
+[    8.211959] [c6]   .cpu_load[0]                   : 0
+[    8.216990] [c6]   .cpu_load[1]                   : 0
+[    8.222022] [c6]   .cpu_load[2]                   : 0
+[    8.227055] [c6]   .cpu_load[3]                   : 0
+[    8.232088] [c6]   .cpu_load[4]                   : 0
+[    8.237121] [c6] 
+[    8.237121] cfs_rq[7]:/
+[    8.241459] [c6]   .exec_clock                    : 0.000000
+[    8.247100] [c6]   .MIN_vruntime                  : 0.000001
+[    8.252739] [c6]   .min_vruntime                  : 3353.952082
+[    8.258641] [c6]   .max_vruntime                  : 0.000001
+[    8.264279] [c6]   .spread                        : 0.000000
+[    8.269918] [c6]   .spread0                       : 3104.141374
+[    8.275819] [c6]   .nr_spread_over                : 0
+[    8.280851] [c6]   .nr_running                    : 0
+[    8.285883] [c6]   .load                          : 0
+[    8.290916] [c6]   .runnable_load_avg             : 0
+[    8.295948] [c6]   .blocked_load_avg              : 4
+[    8.300981] [c6]   .tg_load_avg                   : 1029
+[    8.306273] [c6]   .tg_load_contrib               : 4
+[    8.311305] [c6]   .tg_runnable_contrib           : 4
+[    8.316338] [c6]   .tg->runnable_avg              : 90
+[    8.321457] [c6]   .tg->usage_avg                 : 90
+[    8.326577] [c6]   .avg->runnable_avg_sum         : 233
+[    8.331782] [c6]   .avg->runnable_avg_period      : 47755
+[    8.337163] [c6] 
+[    8.337163] rt_rq[7]:/
+[    8.341414] [c6]   .rt_nr_running                 : 0
+[    8.346446] [c6]   .rt_throttled                  : 0
+[    8.351479] [c6]   .rt_time                       : 0.075667
+[    8.357120] [c6]   .rt_runtime                    : 950.000000
+[    8.362933] [c6] 
+[    8.362933] runnable tasks:
+[    8.362933]             task   PID         tree-key  switches  prio     exec-runtime         sum-exec        sum-sleep
+[    8.362933] ----------------------------------------------------------------------------------------------------------
+[    8.388988] [c6] 
+[    8.390900] [c4] CPU4: stopping
+[    8.394016] [c4] CPU: 4 PID: 0 Comm: swapper/4 Not tainted 3.10.72+ #1
+[    8.400525] [c4] Backtrace: 
+[    8.403386] [c4] [<c0012d84>] (dump_backtrace+0x0/0x114) from [<c0012ff4>] (show_stack+0x20/0x24)
+[    8.412232] [c4]  r7:df2dfe90 r6:00000000 r5:c08b8314 r4:00000004
+[    8.418306] [c4] [<c0012fd4>] (show_stack+0x0/0x24) from [<c05e3abc>] (dump_stack+0x24/0x28)
+[    8.426733] [c4] [<c05e3a98>] (dump_stack+0x0/0x28) from [<c001475c>] (handle_IPI+0x17c/0x198)
+[    8.435315] [c4] [<c00145e0>] (handle_IPI+0x0/0x198) from [<c0008590>] (gic_handle_irq+0x68/0x6c)
+[    8.444170] [c4]  r9:c08cb258 r8:c09290d4 r7:f0002000 r6:df2dfe90 r5:c08c319c
+r4:f000200c
+[    8.452409] [c4] [<c0008528>] (gic_handle_irq+0x0/0x6c) from [<c000e340>] (__irq_svc+0x40/0x70)
+[    8.461090] [c4] Exception stack(0xdf2dfe90 to 0xdf2dfed8)
+[    8.466551] [c4] fe80:                                     00000000 50e22705 50e22705 00062b61
+[    8.475147] [c4] fea0: c1dc4480 c1dc4480 00000000 00000001 c09290d4 c08cb258 df2de000 df2dff04
+[    8.483736] [c4] fec0: 50e22705 df2dfed8 c007cb1c c0023f0c 60000113 ffffffff
+[    8.490760] [c4]  r7:df2dfec4 r6:ffffffff r5:60000113 r4:c0023f0c
+[    8.496831] [c4] [<c0023ed0>] (exynos_enter_idle+0x0/0x70) from [<c0023f90>] (exynos_enter_lowpower+0x50/0x404)
+[    8.506905] [c4]  r6:c08cb258 r5:c1dc4480 r4:00000001
+[    8.511932] [c4] [<c0023f40>] (exynos_enter_lowpower+0x0/0x404) from [<c042e41c>] (cpuidle_enter_state+0x4c/0xf8)
+[    8.522173] [c4]  r8:c09290d4 r7:00000001 r6:e57d640f r5:c08cb258 r4:c1dc4480
+[    8.529281] [c4] [<c042e3d0>] (cpuidle_enter_state+0x0/0xf8) from [<c042e5ac>] (cpuidle_idle_call+0xe4/0x288)
+[    8.539173] [c4]  r7:c0d6a804 r6:00000000 r5:00000001 r4:c1dc4480
+[    8.545242] [c4] [<c042e4c8>] (cpuidle_idle_call+0x0/0x288) from [<c000f618>] (arch_cpu_idle+0x18/0x48)
+[    8.554631] [c4] [<c000f600>] (arch_cpu_idle+0x0/0x48) from [<c007c230>] (cpu_startup_entry+0x148/0x270)
+[    8.564088] [c4] [<c007c0e8>] (cpu_startup_entry+0x0/0x270) from [<c05dfa2c>] (secondary_start_kernel+0x128/0x134)
+[    8.574401] [c4]  r7:c092aa04
+[    8.577351] [c4] [<c05df904>] (secondary_start_kernel+0x0/0x134) from [<405defa4>] (0x405defa4)
+[    8.586033] [c4]  r5:00000015 r4:5f13006a
+[    8.590016] [c4] Unable to handle kernel NULL pointer dereference at virtual address 00000000
+[    8.598531] [c4] pgd = c0004000
+[    8.601637] [c4] [00000000] *pgd=00000000
+[    8.605639] [c4] Internal error: Oops: 805 [#1] PREEMPT SMP ARM
+[    8.611536] [c4] Modules linked in:
+[    8.615005] [c4] CPU: 4 PID: 0 Comm: swapper/4 Not tainted 3.10.72+ #1
+[    8.621523] [c4] task: df2e09c0 ti: df2de000 task.ti: df2de000
+[    8.627334] [c4] PC is at exynos_ss_save_context+0x40/0x224
+[    8.632884] [c4] LR is at exynos_ss_save_context+0x20/0x224
+[    8.638439] [c4] pc : [<c0025e08>]    lr : [<c0025de8>]    psr: 20000193
+[    8.638439] sp : df2dfe28  ip : df2dfe28  fp : df2dfe44
+[    8.650333] [c4] r10: df2de000  r9 : c08cb258  r8 : 00000005
+[    8.655964] [c4] r7 : df2dfe90  r6 : 60000193  r5 : c08c3040  r4 : 00000004
+[    8.662908] [c4] r3 : c08b6608  r2 : 00000000  r1 : 10c5387d  r0 : 00000004
+[    8.669854] [c4] Flags: nzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM  Segment kernel
+[    8.677660] [c4] Control: 10c5387d  Table: 4000406a  DAC: 00000015
+[    8.683816] [c4] CPU 0 / CLUSTER 0
+[    8.687197] [c4] DFSR: 00000805, ADFSR: 00000000, IFSR: 00000000, AIFSR: 00000000
+[    8.694666] [c4] CPUMERRSR: 00000000_00000000, L2MERRSR: 00000000_00000000
+[    8.701517] [c4] 
+[    8.701517] PC: 0xc0025d88:
+[    8.706202] [c4] 5d88  e0833000 e1a00003 eb082ff2 e594103c e0802005 e1a03000 e2822001 e3a0000a
+[    8.714787] [c4] 5da8  e3c2c4ff e5842004 e7c30005 e18c2001 e3a034f9 e5832014 e24bd028 e89daff0
+[    8.723374] [c4] 5dc8  e1a0c00d e92dd8f0 e24cb004 e52de004 e8bd4000 e10f6000 f10c0080 eb0886c2
+[    8.731968] [c4] 5de8  e3035040 e34c508c e3063608 e34c308b e1a02003 e7951100 e7912002 ee111f10
+[    8.740556] [c4] 5e08  e5821000 ee121f10 e5821004 ee121f30 e5821008 ee121f50 e582100c ee131f10
+[    8.749139] [c4] 5e28  e5821010 ee151f10 e5821014 ee161f10 e5821018 ee151f30 e582101c ee161f50
+[    8.757738] [c4] 5e48  e5821020 ee1a1f12 e582102c ee1a1f32 e5821030 ee1d1f10 e5821034 ee1d1f30
+[    8.766318] [c4] 5e68  e5821038 ee1d1f50 e582103c ee1d1f70 e5821040 ee1d1f90 e5821044 e2834004
+[    8.774909] [c4] 
+[    8.774909] LR: 0xc0025d68:
+[    8.779610] [c4] 5d68  e3a01020 e0898e9c e1a0c329 e58dc000 eb0863cb e5943004 e1a0100a e1a02005
+[    8.788191] [c4] 5d88  e0833000 e1a00003 eb082ff2 e594103c e0802005 e1a03000 e2822001 e3a0000a
+[    8.796773] [c4] 5da8  e3c2c4ff e5842004 e7c30005 e18c2001 e3a034f9 e5832014 e24bd028 e89daff0
+[    8.805370] [c4] 5dc8  e1a0c00d e92dd8f0 e24cb004 e52de004 e8bd4000 e10f6000 f10c0080 eb0886c2
+[    8.813959] [c4] 5de8  e3035040 e34c508c e3063608 e34c308b e1a02003 e7951100 e7912002 ee111f10
+[    8.822554] [c4] 5e08  e5821000 ee121f10 e5821004 ee121f30 e5821008 ee121f50 e582100c ee131f10
+[    8.831143] [c4] 5e28  e5821010 ee151f10 e5821014 ee161f10 e5821018 ee151f30 e582101c ee161f50
+[    8.839730] [c4] 5e48  e5821020 ee1a1f12 e582102c ee1a1f32 e5821030 ee1d1f10 e5821034 ee1d1f30
+[    8.848320] [c4] 
+[    8.848320] SP: 0xdf2dfda8:
+[    8.853005] [c4] fda8  c002d72c c022fd7f df2dfdd0 df2dfdd0 df2dfdd0 c0025e08 20000193 ffffffff
+[    8.861596] [c4] fdc8  df2dfe14 00000005 df2dfe44 df2dfde0 c000e2d8 c00083ac 00000004 10c5387d
+[    8.870190] [c4] fde8  00000000 c08b6608 00000004 c08c3040 60000193 df2dfe90 00000005 c08cb258
+[    8.878778] [c4] fe08  df2de000 df2dfe44 df2dfe28 df2dfe28 c0025de8 c0025e08 20000193 ffffffff
+[    8.887367] [c4] fe28  00000004 c08b8314 00000000 df2dfe90 df2dfe6c df2dfe48 c0014760 c0025dd4
+[    8.895954] [c4] fe48  f000200c c08c319c df2dfe90 f0002000 c09290d4 c08cb258 df2dfe8c df2dfe70
+[    8.904548] [c4] fe68  c0008590 c00145ec c0023f0c 60000113 ffffffff df2dfec4 df2dff04 df2dfe90
+[    8.913128] [c4] fe88  c000e340 c0008534 00000000 50e22705 50e22705 00062b61 c1dc4480 c1dc4480
+[    8.921719] [c4] 
+[    8.921719] IP: 0xdf2dfda8:
+[    8.926415] [c4] fda8  c002d72c c022fd7f df2dfdd0 df2dfdd0 df2dfdd0 c0025e08 20000193 ffffffff
+[    8.935000] [c4] fdc8  df2dfe14 00000005 df2dfe44 df2dfde0 c000e2d8 c00083ac 00000004 10c5387d
+[    8.943591] [c4] fde8  00000000 c08b6608 00000004 c08c3040 60000193 df2dfe90 00000005 c08cb258
+[    8.952180] [c4] fe08  df2de000 df2dfe44 df2dfe28 df2dfe28 c0025de8 c0025e08 20000193 ffffffff
+[    8.960763] [c4] fe28  00000004 c08b8314 00000000 df2dfe90 df2dfe6c df2dfe48 c0014760 c0025dd4
+[    8.969362] [c4] fe48  f000200c c08c319c df2dfe90 f0002000 c09290d4 c08cb258 df2dfe8c df2dfe70
+[    8.977949] [c4] fe68  c0008590 c00145ec c0023f0c 60000113 ffffffff df2dfec4 df2dff04 df2dfe90
+[    8.986533] [c4] fe88  c000e340 c0008534 00000000 50e22705 50e22705 00062b61 c1dc4480 c1dc4480
+[    8.995130] [c4] 
+[    8.995130] FP: 0xdf2dfdc4:
+[    8.999822] [c4] fdc4  ffffffff df2dfe14 00000005 df2dfe44 df2dfde0 c000e2d8 c00083ac 00000004
+[    9.008399] [c4] fde4  10c5387d 00000000 c08b6608 00000004 c08c3040 60000193 df2dfe90 00000005
+[    9.016996] [c4] fe04  c08cb258 df2de000 df2dfe44 df2dfe28 df2dfe28 c0025de8 c0025e08 20000193
+[    9.025587] [c4] fe24  ffffffff 00000004 c08b8314 00000000 df2dfe90 df2dfe6c df2dfe48 c0014760
+[    9.034177] [c4] fe44  c0025dd4 f000200c c08c319c df2dfe90 f0002000 c09290d4 c08cb258 df2dfe8c
+[    9.042764] [c4] fe64  df2dfe70 c0008590 c00145ec c0023f0c 60000113 ffffffff df2dfec4 df2dff04
+[    9.051355] [c4] fe84  df2dfe90 c000e340 c0008534 00000000 50e22705 50e22705 00062b61 c1dc4480
+[    9.059945] [c4] fea4  c1dc4480 00000000 00000001 c09290d4 c08cb258 df2de000 df2dff04 50e22705
+[    9.068535] [c4] 
+[    9.068535] R3: 0xc08b6588:
+[    9.073224] [c4] 6588  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.081808] [c4] 65a8  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.090398] [c4] 65c8  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.098990] [c4] 65e8  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.107581] [c4] 6608  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.116169] [c4] 6628  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.124760] [c4] 6648  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.133349] [c4] 6668  e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0 e7fddef0
+[    9.141942] [c4] 
+[    9.141942] R5: 0xc08c2fc0:
+[    9.146631] [c4] 2fc0  c08c2fc0 c08c2fc0 00000000 00000000 00000000 00000000 00000000 00000000
+[    9.155213] [c4] 2fe0  00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    9.163805] [c4] 3000  000000c8 00009000 0000000f 0000002c c1de8100 c1de80c0 c1de8080 00000009
+[    9.172395] [c4] 3020  00000007 00000000 c1da0000 00000008 00001000 00000001 c1de8040 c1de8000
+[    9.180986] [c4] 3040  014ea000 014f3000 014fc000 01505000 0150e000 01517000 01520000 01529000
+[    9.189573] [c4] 3060  0004f200 00000001 0005f772 000be9ff 0000e58e 00002000 00000000 00000032
+[    9.198164] [c4] 3080  0000fffa 00000001 df001d80 de35f550 00000000 00000000 ddc0e580 c1dec200
+[    9.206747] [c4] 30a0  00000011 df001580 0001ffff df001b80 00000064 df001500 00000010 c1e6c200
+[    9.215344] [c4] 
+[    9.215344] R7: 0xdf2dfe10:
+[    9.220038] [c4] fe10  df2dfe28 df2dfe28 c0025de8 c0025e08 20000193 ffffffff 00000004 c08b8314
+[    9.228618] [c4] fe30  00000000 df2dfe90 df2dfe6c df2dfe48 c0014760 c0025dd4 f000200c c08c319c
+[    9.237213] [c4] fe50  df2dfe90 f0002000 c09290d4 c08cb258 df2dfe8c df2dfe70 c0008590 c00145ec
+[    9.245803] [c4] fe70  c0023f0c 60000113 ffffffff df2dfec4 df2dff04 df2dfe90 c000e340 c0008534
+[    9.254388] [c4] fe90  00000000 50e22705 50e22705 00062b61 c1dc4480 c1dc4480 00000000 00000001
+[    9.262980] [c4] feb0  c09290d4 c08cb258 df2de000 df2dff04 50e22705 df2dfed8 c007cb1c c0023f0c
+[    9.271569] [c4] fed0  60000113 ffffffff 50e22705 0002b45d 50e22705 00062b61 df2dff3c 00000001
+[    9.280157] [c4] fef0  c1dc4480 c08cb258 df2dff3c df2dff08 c0023f90 c0023edc 00000007 00000000
+[    9.288748] [c4] 
+[    9.288748] R9: 0xc08cb1d8:
+[    9.293442] [c4] b1d8  ffffffff f8110340 ffffffff f8110350 ffffffff f8110354 ffffffff f8110370
+[    9.302026] [c4] b1f8  ffffffff f8110728 ffffffff c08f8c84 c08e2054 c0023d7c c0023c28 00000000
+[    9.310614] [c4] b218  f84c0000 00000000 f84c0004 00000000 f84c0008 00000000 f84c000c 00000000
+[    9.319202] [c4] b238  f84c0010 00000000 f6100234 00000000 f6100400 00000000 f6100404 00000000
+[    9.327794] [c4] b258  c079ab48 00000000 00000000 00000000 00003143 00000000 00000000 00000000
+[    9.336385] [c4] b278  204d5241 636f6c63 6167206b 676e6974 49465728 00000029 00000000 00000000
+[    9.344978] [c4] b298  00000001 00000001 00000000 000001f4 00000000 c0023ed0 00000000 00003343
+[    9.353564] [c4] b2b8  00000000 00000000 00000000 74737953 70206d65 7265776f 776f6420 0000006e
+[    9.362154] [c4] 
+[    9.362154] R10: 0xdf2ddf80:
+[    9.366934] [c4] df80  60000193 df2dc000 df2dc000 df2dc000 c09290d4 c08c2528 c05f20f0 00000000
+[    9.375518] [c4] dfa0  df2ddfbc df2ddfb0 c000f618 c042e4d4 df2ddfdc df2ddfc0 c007c230 c000f60c
+[    9.384099] [c4] dfc0  c09289df df2dc000 df2ddf40 c092aa04 df2ddff4 df2ddfe0 c05dfa2c c007c0f4
+[    9.392697] [c4] dfe0  5f13006a 00000015 00000000 df2ddff8 405defa4 c05df910 ffffffef fffbfffb
+[    9.401285] [c4] e000  00000000 00010003 00000000 df2e09c0 c08cdd7c 00000004 00000015 c1dc6ec0
+[    9.409878] [c4] e020  df2e09c0 de8a4440 c08c3040 c08d7940 00000000 c08c24f8 df2dff9c df2dfef0
+[    9.418468] [c4] e040  c05e7d60 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    9.427055] [c4] e060  00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+[    9.435647] [c4] Process swapper/4 (pid: 0, stack limit = 0xdf2de238)
+[    9.442074] [c4] Stack: (0xdf2dfe28 to 0xdf2e0000)
+[    9.446843] [c4] fe20:                   00000004 c08b8314 00000000 df2dfe90 df2dfe6c df2dfe48
+[    9.455438] [c4] fe40: c0014760 c0025dd4 f000200c c08c319c df2dfe90 f0002000 c09290d4 c08cb258
+[    9.464029] [c4] fe60: df2dfe8c df2dfe70 c0008590 c00145ec c0023f0c 60000113 ffffffff df2dfec4
+[    9.472620] [c4] fe80: df2dff04 df2dfe90 c000e340 c0008534 00000000 50e22705 50e22705 00062b61
+[    9.481207] [c4] fea0: c1dc4480 c1dc4480 00000000 00000001 c09290d4 c08cb258 df2de000 df2dff04
+[    9.489797] [c4] fec0: 50e22705 df2dfed8 c007cb1c c0023f0c 60000113 ffffffff 50e22705 0002b45d
+[    9.498384] [c4] fee0: 50e22705 00062b61 df2dff3c 00000001 c1dc4480 c08cb258 df2dff3c df2dff08
+[    9.506979] [c4] ff00: c0023f90 c0023edc 00000007 00000000 c08cb258 c1dc4480 c08cb258 c1dc4480
+[    9.515564] [c4] ff20: c08cb258 e57d640f 00000001 c09290d4 df2dff6c df2dff40 c042e41c c0023f4c
+[    9.524158] [c4] ff40: e57d640f 00000001 df2de000 df2de000 c1dc4480 00000001 00000000 c0d6a804
+[    9.532751] [c4] ff60: df2dffac df2dff70 c042e5ac c042e3dc c044e8dc c05e9724 00000004 df2de030
+[    9.541338] [c4] ff80: 60000193 df2de000 df2de000 df2de000 c09290d4 c08c2528 c05f20f0 00000000
+[    9.549928] [c4] ffa0: df2dffbc df2dffb0 c000f618 c042e4d4 df2dffdc df2dffc0 c007c230 c000f60c
+[    9.558517] [c4] ffc0: c09289df df2de000 df2dff40 c092aa04 df2dfff4 df2dffe0 c05dfa2c c007c0f4
+[    9.567110] [c4] ffe0: 5f13006a 00000015 00000000 df2dfff8 405defa4 c05df910 ffffdffb cffff7cf
+[    9.575698] [c4] Backtrace: 
+[    9.578555] [c4] [<c0025dc8>] (exynos_ss_save_context+0x0/0x224) from [<c0014760>] (handle_IPI+0x180/0x198)
+[    9.588280] [c4]  r7:df2dfe90 r6:00000000 r5:c08b8314 r4:00000004
+[    9.594345] [c4] [<c00145e0>] (handle_IPI+0x0/0x198) from [<c0008590>] (gic_handle_irq+0x68/0x6c)
+[    9.603201] [c4]  r9:c08cb258 r8:c09290d4 r7:f0002000 r6:df2dfe90 r5:c08c319c
+r4:f000200c
+[    9.611440] [c4] [<c0008528>] (gic_handle_irq+0x0/0x6c) from [<c000e340>] (__irq_svc+0x40/0x70)
+[    9.620121] [c4] Exception stack(0xdf2dfe90 to 0xdf2dfed8)
+[    9.625587] [c4] fe80:                                     00000000 50e22705 50e22705 00062b61
+[    9.634180] [c4] fea0: c1dc4480 c1dc4480 00000000 00000001 c09290d4 c08cb258 df2de000 df2dff04
+[    9.642769] [c4] fec0: 50e22705 df2dfed8 c007cb1c c0023f0c 60000113 ffffffff
+[    9.649793] [c4]  r7:df2dfec4 r6:ffffffff r5:60000113 r4:c0023f0c
+[    9.655863] [c4] [<c0023ed0>] (exynos_enter_idle+0x0/0x70) from [<c0023f90>] (exynos_enter_lowpower+0x50/0x404)
+[    9.665936] [c4]  r6:c08cb258 r5:c1dc4480 r4:00000001
+[    9.670962] [c4] [<c0023f40>] (exynos_enter_lowpower+0x0/0x404) from [<c042e41c>] (cpuidle_enter_state+0x4c/0xf8)
+[    9.681199] [c4]  r8:c09290d4 r7:00000001 r6:e57d640f r5:c08cb258 r4:c1dc4480
+[    9.688310] [c4] [<c042e3d0>] (cpuidle_enter_state+0x0/0xf8) from [<c042e5ac>] (cpuidle_idle_call+0xe4/0x288)
+[    9.698206] [c4]  r7:c0d6a804 r6:00000000 r5:00000001 r4:c1dc4480
+[    9.704281] [c4] [<c042e4c8>] (cpuidle_idle_call+0x0/0x288) from [<c000f618>] (arch_cpu_idle+0x18/0x48)
+[    9.713662] [c4] [<c000f600>] (arch_cpu_idle+0x0/0x48) from [<c007c230>] (cpu_startup_entry+0x148/0x270)
+[    9.723119] [c4] [<c007c0e8>] (cpu_startup_entry+0x0/0x270) from [<c05dfa2c>] (secondary_start_kernel+0x128/0x134)
+[    9.733441] [c4]  r7:c092aa04
+[    9.736383] [c4] [<c05df904>] (secondary_start_kernel+0x0/0x134) from [<405defa4>] (0x405defa4)
+[    9.745067] [c4]  r5:00000015 r4:5f13006a
+[    9.749054] [c4] Code: e1a02003 e7951100 e7912002 ee111f10 (e5821000) 
+[    9.755581] [c4] ---[ end trace c507edd8bb5bea76 ]---
+[   10.638021] [c6] SMP: failed to stop secondary CPUs
