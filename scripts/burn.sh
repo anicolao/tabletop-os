@@ -6,15 +6,17 @@
 # again at the prompt. `dd` to the wrong device destroys it silently and
 # instantly, and the usual cause is a device name that was correct yesterday.
 #
-# TABLETOP_IMAGE_DIR is substituted by flake.nix.
+# TABLETOP_IMAGE_OPI5PLUS, TABLETOP_IMAGE_RPI5, TABLETOP_DD and TABLETOP_ZSTD
+# are substituted by flake.nix.
 
 usage() {
   cat <<'EOF'
 Write the tabletop-os SD image to a card.
 
 Usage:
-  nix run .#burn -- --sd /dev/rdisk4
-  nix run .#burn -- --list
+  nix run .#burn       -- --sd /dev/rdisk4     # Orange Pi 5 Plus
+  nix run .#burn-rpi5  -- --sd /dev/rdisk4     # Raspberry Pi 5
+  nix run .#burn       -- --list
 
 Options:
   --sd, -sd, -d DEVICE   whole-disk device to write to
@@ -38,10 +40,30 @@ die() {
 os="$(uname -s)"
 device=""
 assume_yes=0
+resolve_image() {
+  dir="$TABLETOP_IMAGE_DIR"
 
-img="$(echo "$TABLETOP_IMAGE_DIR"/sd-image/*.img)"
-[ -f "$img" ] || die "no image found under $TABLETOP_IMAGE_DIR/sd-image/"
-img_bytes="$(wc -c <"$img" | tr -d ' ')"
+  # The Orange Pi image is raw; the Raspberry Pi one is zstd-compressed,
+  # because it is produced by a different image module. Handle both.
+  img="$(echo "$dir"/sd-image/*.img "$dir"/sd-image/*.img.zst 2>/dev/null | tr ' ' '\n' | grep -v '\*' | head -1)"
+  [ -n "$img" ] && [ -f "$img" ] || die "no image found under $dir/sd-image/"
+
+  case "$img" in
+    *.zst)
+      compressed=1
+      # Decompressed size, so the "does it fit" check means something.
+      img_bytes="$("$TABLETOP_ZSTD" --list "$img" 2>/dev/null |
+        awk 'NR>1 && $0 ~ /[0-9]/ {for(i=1;i<=NF;i++) if($i ~ /GiB|MiB/) {print $(i-1), $i}}' |
+        head -1 |
+        awk '{ if ($2 == "GiB") print int($1 * 1073741824); else print int($1 * 1048576) }')"
+      [ -n "$img_bytes" ] || img_bytes=0
+      ;;
+    *)
+      compressed=0
+      img_bytes="$(wc -c <"$img" | tr -d ' ')"
+      ;;
+  esac
+}
 
 list_disks() {
   case "$os" in
@@ -93,6 +115,8 @@ while [ $# -gt 0 ]; do
     *) die "unknown argument '$1' (try --help)" ;;
   esac
 done
+
+resolve_image
 
 if [ -z "$device" ]; then
   usage
@@ -200,8 +224,9 @@ fi
 
 cat <<EOF
 
+  board   $TABLETOP_BOARD
   image   $img
-          $(printf '%s' "$img_bytes" | awk '{printf "%.1f GB", $1/1000000000}')
+          $(printf '%s' "$img_bytes" | awk '{printf "%.1f GB", $1/1000000000}')$([ "$compressed" = 1 ] && echo " (decompressed on the fly)")
   target  $raw
           $describe
 
@@ -240,7 +265,13 @@ echo "Writing (this needs sudo, and takes a few minutes) ..."
 # sudo's PATH, which varies by machine and sudoers configuration, so the binary
 # and the arguments written for it could silently disagree. Pinning the exact
 # derivation means the flake decides, and the pairing is fixed at build time.
-sudo "$TABLETOP_DD" if="$img" of="$raw" bs=4M status=progress conv=fsync
+if [ "$compressed" = 1 ]; then
+  # Decompress into dd rather than onto disk first: the expanded image is
+  # several times the size of the .zst and would otherwise need a scratch file.
+  "$TABLETOP_ZSTD" -dc "$img" | sudo "$TABLETOP_DD" of="$raw" bs=4M status=progress conv=fsync
+else
+  sudo "$TABLETOP_DD" if="$img" of="$raw" bs=4M status=progress conv=fsync
+fi
 
 echo "Flushing ..."
 sync

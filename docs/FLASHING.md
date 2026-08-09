@@ -247,3 +247,24 @@ The M.2 slot works and the required modules are already in
 `boot.initrd.availableKernelModules`. The usual approach is to keep U-Boot on
 the SD card (or write it to SPI flash) and move only the rootfs to the SSD.
 Untested here — the SD path is what is validated.
+
+## Raspberry Pi 5
+
+```sh
+nix run .#burn-rpi5 -- --list
+nix run .#burn-rpi5 -- --sd /dev/rdisk4
+```
+
+Same safety checks as the Orange Pi. Two differences worth knowing:
+
+- The Pi image is **zstd-compressed** (`.img.zst`), because it is produced by
+  nixos-images' installer module rather than nixpkgs' `sd-image.nix`. `burn`
+  decompresses it straight into `dd` rather than expanding it to a scratch file
+  first, so the size it reports is the *decompressed* size.
+- **First boot needs Ethernet.** The Pi 5 has onboard wireless, but there is no
+  credential mechanism in this repo yet, and the kiosk waits on
+  `network-online.target`. Without a network there is no way in, because SSH
+  needs the network it does not have.
+
+The build pulls the vendor kernel from `nixos-raspberrypi` — nixpkgs has no
+`linuxPackages_rpi5` at all, only rpi0 through rpi4.

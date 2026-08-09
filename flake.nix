@@ -3,10 +3,36 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
+    # Raspberry Pi 5 support. Not optional: nixpkgs has no linuxPackages_rpi5
+    # (only rpi0-rpi4), and nixos-hardware's raspberry-pi/5 is a stub with no
+    # display module. This provides the vendor kernel, matched firmware and
+    # device trees, and full-KMS display configuration.
+    # Pinned to our nixpkgs. Their binary cache does not have this kernel
+    # either way (checked — the cache is healthy, it just lacks this build), so
+    # the choice is purely about closure sharing. Measured: following our
+    # nixpkgs needs 171 derivations and 4.8 GB, letting it use its own needs
+    # 368 and 6.7 GB, because a second nixpkgs shares nothing with what is
+    # already in the store from the Orange Pi — including Chromium.
+    nixos-raspberrypi = {
+      url = "github:nvmd/nixos-raspberrypi/main";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  # The Raspberry Pi vendor kernel is not in cache.nixos.org. Without this
+  # substituter, building the rpi5 image compiles a kernel from source.
+  # It is the upstream project's own cache — read it as a trust decision, and
+  # drop this block if you would rather compile.
+  nixConfig = {
+    extra-substituters = [ "https://nixos-raspberrypi.cachix.org" ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
   };
 
   outputs =
-    { self, nixpkgs }:
+    { self, nixpkgs, nixos-raspberrypi }:
     let
       # Every target board is 64-bit ARM. The *build* host may be aarch64-darwin
       # (a laptop driving a linux-builder VM) or aarch64-linux (a native builder),
@@ -102,11 +128,11 @@
         };
 
       burnApp =
-        hostSystem:
+        hostSystem: boardName: imageDrv:
         let
           hp = nixpkgs.legacyPackages.${hostSystem};
           script = hp.writeShellApplication {
-            name = "tabletop-burn";
+            name = "tabletop-burn-${boardName}";
             runtimeInputs = with hp; [
               coreutils
               gnugrep
@@ -114,21 +140,65 @@
               gawk
             ];
             text = ''
-              TABLETOP_IMAGE_DIR=${image}
-              # Pinned to a store path rather than left to PATH: this one runs
-              # under sudo, and GNU and BSD dd take incompatible arguments.
+              TABLETOP_BOARD=${boardName}
+              TABLETOP_IMAGE_DIR=${imageDrv}
+              # Pinned to store paths rather than left to PATH: dd runs under
+              # sudo, and GNU and BSD dd take incompatible arguments.
               TABLETOP_DD=${lib.getBin hp.coreutils}/bin/dd
+              TABLETOP_ZSTD=${lib.getBin hp.zstd}/bin/zstd
             ''
             + builtins.readFile ./scripts/burn.sh;
           };
         in
         {
           type = "app";
-          program = "${script}/bin/tabletop-burn";
+          program = "${script}/bin/tabletop-burn-${boardName}";
           meta.description = "Write the SD image to a card, with safety checks";
         };
 
       opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
+
+      # The Pi needs the flake's own nixosSystem wrapper (it layers in the
+      # vendor overlays), and its image comes from the sdimage-installer
+      # module rather than nixpkgs' sd-image.nix — which their base module
+      # explicitly disables. Mirrors nixos-raspberrypi's own installerImages.
+      rpi5 = nixos-raspberrypi.lib.nixosInstaller {
+        specialArgs = { inherit nixos-raspberrypi; };
+        modules = [
+          nixos-raspberrypi.inputs.nixos-images.nixosModules.sdimage-installer
+          (
+            { config, lib, modulesPath, ... }:
+            {
+              disabledModules = [
+                (modulesPath + "/installer/sd-card/sd-image-aarch64-installer.nix")
+              ];
+              image.baseName = lib.mkOverride 40 "tabletop-os-rpi5";
+              networking.wireless.enable = lib.mkForce false;
+            }
+          )
+          {
+            # Undo two of nixos-raspberrypi's overlays. It replaces ffmpeg and
+            # libcamera with Raspberry Pi forks (ffmpeg-headless-rpi,
+            # libcamera-rpi), which a kiosk needs for nothing — there is no
+            # camera, and Chromium decodes video through VAAPI rather than
+            # ffmpeg. But they propagate up through pipewire and gtk4 into
+            # Chromium, changing its derivation hash and forcing a from-source
+            # Chromium build measured in hours. Restoring the stock packages
+            # makes Chromium identical to the Orange Pi's, which is already
+            # built.
+            nixpkgs.overlays = [
+              (final: prev: {
+                inherit (nixpkgs.legacyPackages.${target})
+                  ffmpeg
+                  ffmpeg-headless
+                  libcamera
+                  ;
+              })
+            ];
+          }
+          ./hosts/rpi5.nix
+        ] ++ sharedModules;
+      };
 
       image = opi5plus.config.system.build.sdImage;
       # The kiosk system itself, without the SD card wrapper. Useful for
@@ -140,14 +210,16 @@
       # resolves against packages.aarch64-darwin. Exposing them under both
       # systems means the documented command works from either machine; Nix
       # dispatches the actual build to the aarch64-linux builder regardless.
+      rpi5Image = rpi5.config.system.build.sdImage;
+
       commonPackages = {
-        inherit image toplevel;
+        inherit image toplevel rpi5Image;
         default = image;
       };
     in
     {
       nixosConfigurations = {
-        inherit opi5plus;
+        inherit opi5plus rpi5;
         vm = mkVm target;
       };
 
@@ -165,12 +237,14 @@
       apps.${target} = {
         vm = vmApp target;
         image = imageApp target;
-        burn = burnApp target;
+        burn = burnApp target "opi5plus" image;
+        burn-rpi5 = burnApp target "rpi5" rpi5Image;
       };
       apps.aarch64-darwin = {
         vm = vmApp "aarch64-darwin";
         image = imageApp "aarch64-darwin";
-        burn = burnApp "aarch64-darwin";
+        burn = burnApp "aarch64-darwin" "opi5plus" image;
+        burn-rpi5 = burnApp "aarch64-darwin" "rpi5" rpi5Image;
       };
 
       formatter.aarch64-darwin = nixpkgs.legacyPackages.aarch64-darwin.nixfmt-rfc-style;

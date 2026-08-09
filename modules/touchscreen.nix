@@ -1,7 +1,21 @@
-# Touch input and display-power behaviour.
+# Touch input.
 #
-# The screen is the only input device. Everything here exists so that a person
-# walking up to a table finds it awake and responding to fingers.
+# What actually makes touch work is spread across three places, which is worth
+# stating because it is easy to assume this file is the whole story:
+#
+#   1. wlroots links libinput directly, so cage consumes evdev without any X
+#      input driver. Nothing here enables that; it is simply how cage works.
+#   2. modules/kiosk.nix puts the kiosk user in the `input` group.
+#   3. This file supplies libinput's udev quirks database (via
+#      services.libinput, whose X11 half is inert under Wayland but whose
+#      `services.udev.packages` half is not), the permissions rules below, and
+#      output rotation.
+#
+# The panel on the large table is a RAPT digitizer that presents no HID
+# interface at all — an external box runs a vendor binary and re-presents it as
+# a normal USB HID device. From this module's point of view that is just an
+# ordinary touchscreen. The portable Raspberry Pi table has a real USB HID
+# panel, so it needs no such translation.
 {
   config,
   lib,
@@ -47,14 +61,6 @@ in
       "-r"
       cfg.rotation
     ];
-
-    # Never blank. DPMS on a table full of game pieces is a support call.
-    services.cage.environment = {
-      WLR_DRM_NO_ATOMIC = lib.mkDefault "0";
-    };
-
-    # A visible mouse pointer on a touch-only device looks broken.
-    environment.etc."xdg/tabletop-cursor".text = "hidden";
 
     # Multi-touch devices need to be readable by the kiosk user. The `input`
     # group grants that; this makes sure hotplugged panels land in it too.

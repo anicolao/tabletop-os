@@ -10,7 +10,10 @@
 }:
 
 {
-  system.stateVersion = "26.05";
+  # mkDefault: the Raspberry Pi image is produced through nixos-images'
+  # installer profile, which pins its own stateVersion. Neither value changes
+  # behaviour for a machine with no stateful services worth migrating.
+  system.stateVersion = lib.mkDefault "26.05";
 
   time.timeZone = lib.mkDefault "America/Toronto";
   i18n.defaultLocale = "en_US.UTF-8";
