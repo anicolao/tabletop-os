@@ -48,6 +48,7 @@
         ./modules/kiosk.nix
         ./modules/touchscreen.nix
         ./modules/status.nix
+        ./modules/wifi.nix
       ];
 
       mkSystem =

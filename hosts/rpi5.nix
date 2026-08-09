@@ -69,12 +69,13 @@
   # because Chromium blocklists v3d too.
   hardware.graphics.enable = true;
 
-  # Onboard wireless exists here (it does not on the Orange Pi), and a
-  # *portable* table is precisely the device that needs it. Still not
-  # configured: a PSK cannot go in a public repository, and the FAT-partition
-  # credential scheme described in modules/base.nix is unwritten and untested.
+  # Onboard wireless exists here, unlike the Orange Pi, and a *portable* table
+  # is precisely the device that needs it. Credentials come off the SD card's
+  # FAT partition rather than the repository — see modules/wifi.nix for why
+  # this is a bootstrap problem that sops-nix cannot solve.
   #
-  # Consequence for first boot: this needs **Ethernet**. Without a network the
-  # kiosk waits on network-online.target, and there is no way in to fix it —
+  # Ethernet still works and takes priority if plugged in. If neither is
+  # available the kiosk waits on network-online.target with no way in, since
   # SSH needs the network it does not have.
+  tabletop.wifi.enable = true;
 }

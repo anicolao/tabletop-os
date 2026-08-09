@@ -268,3 +268,45 @@ Same safety checks as the Orange Pi. Two differences worth knowing:
 
 The build pulls the vendor kernel from `nixos-raspberrypi` — nixpkgs has no
 `linuxPackages_rpi5` at all, only rpi0 through rpi4.
+
+## WiFi on the Raspberry Pi (portable table)
+
+The Pi has onboard wireless; credentials come off the SD card rather than the
+repository. After flashing, reinsert the card — the **FIRMWARE** partition
+mounts as a removable volume — and create `wifi.conf` on it:
+
+```ini
+ssid = YourNetworkName
+psk = your-passphrase
+
+# hidden = true      # only for a non-broadcast SSID
+```
+
+At boot, before NetworkManager starts, this becomes a keyfile at
+`/etc/NetworkManager/system-connections/tabletop-wifi.nmconnection`, mode 0600.
+Quotes are optional, surrounding spaces are trimmed, and CRLF line endings are
+tolerated — the file gets edited on whatever laptop is to hand. A quoted value
+keeps its interior spaces, so `ssid = "My Net "` is respected exactly.
+
+No file means no WiFi, which is fine if you are on Ethernet — Ethernet takes
+priority anyway. A copy of the format lives on the device at
+`/etc/tabletop/wifi.conf.example`.
+
+### Why not sops-nix
+
+The rest of these machines use `sops-nix`, and it is the right tool for
+everything *except* this. sops needs a decryption key on the device, and
+getting that key onto a freshly flashed card has the identical chicken-and-egg
+problem: no network, no keys, and the secret in question is what grants the
+network. The out-of-band step is unavoidable; the FAT partition is simply the
+cheapest channel that already exists on both boards.
+
+The threat model is also narrower than it looks. The requirement is *do not
+publish the passphrase to a public repository* — not *protect it from someone
+holding the card*. NetworkManager stores the passphrase in plaintext on the root
+filesystem regardless, and anyone with physical access to a tabletop very
+likely has the network already.
+
+Once a device is on the network, `sops-nix` is the right answer for every
+subsequent secret, and this same file could carry an age identity instead of a
+passphrase without changing the mechanism.
