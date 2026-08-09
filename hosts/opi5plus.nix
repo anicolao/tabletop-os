@@ -22,6 +22,18 @@
   ...
 }:
 
+let
+  # Trade resolution for frame rate on the bring-up panel.
+  #
+  # That display is capped at 4K@30 by its own EDID — Max_TMDS_Character_Rate
+  # 300 MHz, no HDMI Forum block — which caps every frame the GPU produces at
+  # 30 fps no matter how fast Panfrost is. Its CTA block marks 1920x1080@60 as
+  # the native mode, so 1080p doubles the refresh.
+  #
+  # Set to false to go back to 3840x2160@30. Flipping this needs a reboot, not
+  # a reflash: `nixos-rebuild switch --target-host ...` then reboot.
+  forceHdmi1080p60 = false;
+in
 {
   imports = [ "${modulesPath}/installer/sd-card/sd-image.nix" ];
 
@@ -213,6 +225,25 @@
         libva
         libva-vdpau-driver
       ];
+    };
+  };
+
+  # Force 1920x1080@60 by substituting the display's EDID.
+  #
+  # `video=HDMI-A-2:1920x1080@60` does NOT work here, which is worth recording:
+  # it lands on the kernel command line and the connector does list 1080p modes,
+  # but cage/wlroots picks the connector's *preferred* mode and ignores the
+  # kernel's command-line mode entirely. Verified — the cmdline was correct and
+  # the output stayed at 3840x2160@30.
+  #
+  # Replacing the EDID changes which mode is preferred, which cage does honour.
+  # The modeline is the standard CEA-861 1080p60 timing.
+  hardware.display = lib.mkIf forceHdmi1080p60 {
+    edid.modelines."TT1080p60" =
+      "148.50  1920 2008 2052 2200  1080 1084 1089 1125  +hsync +vsync";
+    outputs."HDMI-A-2" = {
+      edid = "TT1080p60.bin";
+      mode = "e"; # force the connector enabled
     };
   };
 
