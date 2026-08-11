@@ -133,15 +133,16 @@ in
 
     displayTimeoutSeconds = lib.mkOption {
       type = lib.types.int;
-      default = 45;
+      default = 180;
       description = ''
         How long to wait for a connected display before starting the kiosk
         anyway.
 
-        Generous on purpose. DisplayPort over USB-C only appears after PD
-        negotiation and alt-mode entry, which on this hardware lands somewhere
-        around 15-20 seconds. Waiting costs nothing on HDMI, which is present
-        from early boot.
+        Very generous on purpose. DisplayPort over USB-C appears after PD
+        negotiation and alt-mode entry at around 15-20 seconds, but a usable
+        link takes longer: the AUX channel times out repeatedly on a cold boot
+        and has been seen to settle only near the 100 second mark. Waiting
+        costs nothing on HDMI, which is ready on the first attempt.
       '';
     };
 
@@ -211,6 +212,8 @@ in
       extraArguments = [
         "-m"
         "last"
+        # TEMPORARY DIAGNOSTIC: wlroots debug logging.
+        "-D"
       ];
       # The launcher is listed first so it is the active tab; diagnosticTabs sit
       # behind it and are revealed one Ctrl+W at a time.
@@ -237,6 +240,40 @@ in
         }
       ''}";
       environment = {
+        # Use the legacy KMS path rather than atomic.
+        #
+        # This is the startup wedge, and it is a kernel driver limitation, not
+        # a race. wlroots tests every modeset with an atomic commit first, and
+        # on this board the rockchip VOP2 driver rejects it for DP-1:
+        #
+        #   connector DP-1: Atomic commit failed: Unknown error 524
+        #   (flags: ATOMIC_TEST_ONLY | ATOMIC_ALLOW_MODESET)
+        #   Swapchain for output 'DP-1' failed test
+        #
+        # 524 is ENOTSUPP. It fails identically at 848x480 and 3840x2160, with
+        # AFBC modifiers and with LINEAR, so it is the atomic path itself and
+        # not the size or the format. cage therefore never enables the output;
+        # having no output it never configures the browser's surface; and the
+        # browser blocks forever with its three zygotes and no renderer. The
+        # panel stays black while every service reports active.
+        #
+        # The deeper cause is below both paths — legacy KMS fails the same way,
+        # "Failed to set CRTC: Unknown error 524" — because the DisplayPort AUX
+        # channel times out on a cold boot:
+        #
+        #   dw-dp fde50000.dp: timeout waiting for AUX reply    (x206)
+        #
+        # AUX carries EDID and DPCD link training over the USB-C SBU pins, so
+        # while it is timing out no mode can be validated and every modeset is
+        # refused. It settles on its own, but not until around 100 seconds in.
+        #
+        # Legacy is kept because it recovers once the link comes up: the mode
+        # reached 3840x2160 @ 60 on the boot where the atomic path had already
+        # given the output up for dead. Worth revisiting — the atomic path is
+        # the better one for direct scanout, and this is a workaround for a
+        # driver problem, not a fix for it.
+        WLR_DRM_NO_ATOMIC = "1";
+
         # Chromium checks this before deciding it can use Wayland at all.
         XDG_SESSION_TYPE = "wayland";
         # Ozone/Wayland occasionally probes for a GTK theme; a missing one
@@ -275,24 +312,60 @@ in
             name = "tabletop-wait-display";
             runtimeInputs = [ pkgs.coreutils ];
             text = ''
-              for i in $(seq 1 ${toString cfg.displayTimeoutSeconds}); do
+              # "connected" is not the same as "usable", and the difference is
+              # the whole bug.
+              #
+              # DisplayPort reads EDID and trains the link over AUX, which on
+              # the USB-C SBU pins of this board fails often on a cold boot:
+              #
+              #   dw-dp fde50000.dp: timeout waiting for AUX reply
+              #
+              # When that happens the connector still reports "connected" while
+              # having no EDID at all and offering only the kernel's fallback
+              # mode list — 640x480, 1024x768, 800x600, with no 3840x2160
+              # anywhere. Releasing the compositor on "connected" alone starts
+              # it against that junk, every modeset is refused with ENOTSUPP,
+              # and the browser then waits forever for a surface that is never
+              # configured. Black panel, everything reporting healthy.
+              #
+              # A non-empty EDID is the honest readiness signal: it can only be
+              # read if AUX is working. HDMI reads EDID over I2C DDC and passes
+              # this on the first attempt, so it costs nothing there.
+              usable_display() {
                 for s in /sys/class/drm/card*-*/status; do
-                  if [ "$(cat "$s" 2>/dev/null)" = "connected" ]; then
-                    echo "display ready: $(basename "$(dirname "$s")") after ''${i}s"
-                    # Settle only when the display arrived late, which means it
-                    # appeared through alt-mode negotiation rather than simply
-                    # being there. Link training and the first EDID read are
-                    # still finishing at that instant; starting into it is how a
-                    # compositor ends up holding an output whose mode is about
-                    # to change underneath it. HDMI matches on the first pass
-                    # and pays nothing.
-                    if [ "$i" -gt 1 ]; then sleep 2; fi
-                    exit 0
+                  d=$(dirname "$s")
+                  [ "$(cat "$s" 2>/dev/null)" = "connected" ] || continue
+                  if [ "$(wc -c < "$d/edid" 2>/dev/null || echo 0)" -gt 0 ]; then
+                    basename "$d"
+                    return 0
                   fi
                 done
-                sleep 1
+                return 1
+              }
+
+              deadline=$(( $(date +%s) + ${toString cfg.displayTimeoutSeconds} ))
+              poked=0
+              while [ "$(date +%s)" -lt "$deadline" ]; do
+                if out=$(usable_display); then
+                  echo "display ready: $out (EDID readable, $poked re-probes)"
+                  exit 0
+                fi
+
+                # The kernel does not retry a failed EDID read on its own — it
+                # gives up and keeps serving the fallback modes indefinitely.
+                # Forcing a re-probe does retry it, and does recover: observed
+                # going 0 bytes -> 256 bytes with 3840x2160 appearing, though
+                # not on every attempt, so this keeps asking.
+                for s in /sys/class/drm/card*-*/status; do
+                  if [ "$(cat "$s" 2>/dev/null)" = "connected" ]; then
+                    echo detect > "$s" 2>/dev/null || true
+                  fi
+                done
+                poked=$((poked + 1))
+                sleep 3
               done
-              echo "no display after ${toString cfg.displayTimeoutSeconds}s; starting anyway" >&2
+
+              echo "no usable display after ${toString cfg.displayTimeoutSeconds}s; starting anyway" >&2
             '';
           }
         );
@@ -378,21 +451,35 @@ in
                 exit 0
               fi
 
-              for attempt in 1 2 3; do
-                # Long enough for cage to bind an output and for Chromium to
-                # map its first surface on a cold boot.
-                sleep 25
+              # Eight attempts at 20s covers roughly three minutes. That
+              # budget is set by the hardware, not by taste: the DisplayPort
+              # AUX channel on this board times out repeatedly on a cold boot
+              # and the link only settles around the 100 second mark. Three
+              # attempts spent themselves before the link came up, leaving a
+              # working 4K60 output with a browser that had already given up.
+              for attempt in 1 2 3 4 5 6 7 8; do
+                sleep 20
                 if kiosk_is_rendering; then
                   echo "kiosk is rendering (after $((attempt - 1)) restarts)"
                   exit 0
                 fi
-                echo "kiosk has no renderer; restarting cage (attempt $attempt)" >&2
+                echo "kiosk has no renderer; restarting cage (attempt $attempt/8)" >&2
+
+                # Deliberately does NOT force a re-probe here. Poking a
+                # connector whose AUX is dead makes things worse, not better:
+                # eight forced re-probes in a row took DP-1 from "connected
+                # with no EDID" to "disconnected" outright. The gate before
+                # startup pokes a bounded number of times to recover a link
+                # that is merely slow; once the compositor is running, a link
+                # that will not train is a hardware problem and hammering it
+                # only removes the output entirely.
+                sleep 2
                 # --no-block: do not wait on the job. Waiting is what made the
                 # earlier version take 90s per attempt and recover nothing.
                 systemctl restart --no-block cage-tty1 || true
               done
 
-              echo "still no renderer after 3 restarts; leaving it alone" >&2
+              echo "still no renderer after 8 restarts; leaving it alone" >&2
             '';
           }
         );
@@ -429,6 +516,11 @@ in
         # compositor holds no state worth saving, and the browser is launched
         # with crash-restore suppressed.
         TimeoutStopSec = 5;
+
+        # TEMPORARY DIAGNOSTIC: capture the browser's stderr. cage's output
+        # otherwise goes to tty1, where it is invisible over SSH.
+        StandardOutput = "journal";
+        StandardError = "journal";
 
         # Clear Chromium's process singleton before every start.
         #
