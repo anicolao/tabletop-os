@@ -39,6 +39,10 @@ in
 
   networking.hostName = "tabletop-opi5plus";
 
+  # Loopback-only; reach it with
+  #   ssh -L 9222:127.0.0.1:9222 admin@tabletop-opi5plus
+  tabletop.kiosk.remoteDebuggingPort = 9222;
+
   boot = {
     kernelPackages = pkgs.linuxPackages_latest;
 

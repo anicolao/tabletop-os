@@ -63,6 +63,9 @@ let
     "--overscroll-history-navigation=0"
   ]
   ++ lib.optional cfg.incognito "--incognito"
+  ++ lib.optional (
+    cfg.remoteDebuggingPort != 0
+  ) "--remote-debugging-port=${toString cfg.remoteDebuggingPort}"
   ++ cfg.extraChromiumFlags;
 in
 {
@@ -143,6 +146,27 @@ in
         link takes longer: the AUX channel times out repeatedly on a cold boot
         and has been seen to settle only near the 100 second mark. Waiting
         costs nothing on HDMI, which is ready on the first attempt.
+      '';
+    };
+
+    remoteDebuggingPort = lib.mkOption {
+      type = lib.types.int;
+      default = 0;
+      example = 9222;
+      description = ''
+        Expose Chromium's DevTools protocol on this port, or 0 to disable.
+
+        Bound to loopback by Chromium, so reaching it means an SSH tunnel:
+        `ssh -L 9222:127.0.0.1:9222 admin@tabletop-opi5plus`. That is
+        deliberate — the protocol allows arbitrary script execution in the
+        kiosk's browser, so it must not be reachable from the network.
+
+        This is the only way to ask this device what its GPU is actually
+        doing. `chrome://gpu` cannot be opened here: Chromium discards
+        `chrome://` URLs given on the command line, and kiosk mode has no
+        address bar. SystemInfo.getInfo over this port answers the same
+        question, and the Performance and Tracing domains answer the ones
+        that follow it.
       '';
     };
 
