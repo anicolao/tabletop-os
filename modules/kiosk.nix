@@ -212,8 +212,6 @@ in
       extraArguments = [
         "-m"
         "last"
-        # TEMPORARY DIAGNOSTIC: wlroots debug logging.
-        "-D"
       ];
       # The launcher is listed first so it is the active tab; diagnosticTabs sit
       # behind it and are revealed one Ctrl+W at a time.
@@ -240,39 +238,12 @@ in
         }
       ''}";
       environment = {
-        # Use the legacy KMS path rather than atomic.
-        #
-        # This is the startup wedge, and it is a kernel driver limitation, not
-        # a race. wlroots tests every modeset with an atomic commit first, and
-        # on this board the rockchip VOP2 driver rejects it for DP-1:
-        #
-        #   connector DP-1: Atomic commit failed: Unknown error 524
-        #   (flags: ATOMIC_TEST_ONLY | ATOMIC_ALLOW_MODESET)
-        #   Swapchain for output 'DP-1' failed test
-        #
-        # 524 is ENOTSUPP. It fails identically at 848x480 and 3840x2160, with
-        # AFBC modifiers and with LINEAR, so it is the atomic path itself and
-        # not the size or the format. cage therefore never enables the output;
-        # having no output it never configures the browser's surface; and the
-        # browser blocks forever with its three zygotes and no renderer. The
-        # panel stays black while every service reports active.
-        #
-        # The deeper cause is below both paths — legacy KMS fails the same way,
-        # "Failed to set CRTC: Unknown error 524" — because the DisplayPort AUX
-        # channel times out on a cold boot:
-        #
-        #   dw-dp fde50000.dp: timeout waiting for AUX reply    (x206)
-        #
-        # AUX carries EDID and DPCD link training over the USB-C SBU pins, so
-        # while it is timing out no mode can be validated and every modeset is
-        # refused. It settles on its own, but not until around 100 seconds in.
-        #
-        # Legacy is kept because it recovers once the link comes up: the mode
-        # reached 3840x2160 @ 60 on the boot where the atomic path had already
-        # given the output up for dead. Worth revisiting — the atomic path is
-        # the better one for direct scanout, and this is a workaround for a
-        # driver problem, not a fix for it.
-        WLR_DRM_NO_ATOMIC = "1";
+        # NOTE: WLR_DRM_NO_ATOMIC was tried here and made things strictly
+        # worse. Every cold boot before it was set came up at 3840x2160 @ 60;
+        # every boot after it failed. The legacy KMS path appears to stall
+        # cage's event loop on this driver, and a compositor that stops reading
+        # its Wayland socket is exactly what wedges the browser — see below.
+        # Do not re-add it without testing several cold boots.
 
         # Chromium checks this before deciding it can use Wayland at all.
         XDG_SESSION_TYPE = "wayland";
@@ -451,19 +422,22 @@ in
                 exit 0
               fi
 
-              # Eight attempts at 20s covers roughly three minutes. That
-              # budget is set by the hardware, not by taste: the DisplayPort
-              # AUX channel on this board times out repeatedly on a cold boot
-              # and the link only settles around the 100 second mark. Three
-              # attempts spent themselves before the link came up, leaving a
-              # working 4K60 output with a browser that had already given up.
-              for attempt in 1 2 3 4 5 6 7 8; do
-                sleep 20
+              # Twelve attempts at 15s, about three minutes.
+              #
+              # Tuned from measurement, not taste. A healthy cold boot reaches
+              # renderers within roughly 15-20 seconds, so a 15s check risks
+              # very little; and a wedged instance never recovers on its own,
+              # so every second spent waiting on one is wasted. More attempts
+              # therefore beat longer ones: across cold boots the successes
+              # needed 0 and 5 restarts respectively, and the one failure had
+              # exhausted 8.
+              for attempt in $(seq 1 12); do
+                sleep 15
                 if kiosk_is_rendering; then
                   echo "kiosk is rendering (after $((attempt - 1)) restarts)"
                   exit 0
                 fi
-                echo "kiosk has no renderer; restarting cage (attempt $attempt/8)" >&2
+                echo "kiosk has no renderer; restarting cage (attempt $attempt/12)" >&2
 
                 # Deliberately does NOT force a re-probe here. Poking a
                 # connector whose AUX is dead makes things worse, not better:
@@ -479,7 +453,7 @@ in
                 systemctl restart --no-block cage-tty1 || true
               done
 
-              echo "still no renderer after 8 restarts; leaving it alone" >&2
+              echo "still no renderer after 12 restarts; leaving it alone" >&2
             '';
           }
         );
@@ -517,8 +491,11 @@ in
         # with crash-restore suppressed.
         TimeoutStopSec = 5;
 
-        # TEMPORARY DIAGNOSTIC: capture the browser's stderr. cage's output
-        # otherwise goes to tty1, where it is invisible over SSH.
+        # cage's own output would otherwise go to tty1, invisible over SSH.
+        # Worth keeping: this is where wlroots reports modeset failures, and
+        # journald files those lines under "cage[PID]" rather than under this
+        # unit, so look for them with `journalctl -b | grep "cage\["` — not
+        # `journalctl -u cage-tty1`, which shows nothing.
         StandardOutput = "journal";
         StandardError = "journal";
 

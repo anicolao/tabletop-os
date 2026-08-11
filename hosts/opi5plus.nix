@@ -39,12 +39,6 @@ in
 
   networking.hostName = "tabletop-opi5plus";
 
-  # TEMPORARY DIAGNOSTIC: make Chromium say why it wedges at startup.
-  tabletop.kiosk.extraChromiumFlags = [
-    "--enable-logging=stderr"
-    "--v=1"
-  ];
-
   boot = {
     kernelPackages = pkgs.linuxPackages_latest;
 
