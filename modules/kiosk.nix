@@ -117,20 +117,6 @@ in
       '';
     };
 
-    displayTimeoutSeconds = lib.mkOption {
-      type = lib.types.int;
-      default = 45;
-      description = ''
-        How long to wait for a connected display before starting the kiosk
-        anyway.
-
-        Generous on purpose. DisplayPort over USB-C only appears after PD
-        negotiation and alt-mode entry, which on this hardware lands somewhere
-        around 15-20 seconds. Waiting costs nothing on HDMI, which is present
-        from early boot.
-      '';
-    };
-
     extraChromiumFlags = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -181,28 +167,6 @@ in
     services.cage = {
       enable = true;
       user = cfg.user;
-      # -m last: use one output only.
-      #
-      # cage's default is "-m extend", which spans every connected output as a
-      # single logical surface. With HDMI and DisplayPort both plugged in that
-      # produced a picture offset across two panels, and it is also the best
-      # candidate for the intermittent startup wedge seen on this board: cage
-      # would come up holding no DRM device at all (3 file descriptors, none of
-      # them DRM, 216ms of CPU over two and a half minutes, deaf to SIGTERM),
-      # while every service-level check reported it healthy. Restarting it
-      # always fixed it, which fits outputs still settling during the first
-      # start — DisplayPort over USB-C appears late, after PD negotiation.
-      #
-      # Three consecutive cold boots came up clean with this set, versus the
-      # intermittent failure before. Not proof of causation, but the wedge has
-      # not recurred.
-      #
-      # NB "-d" is NOT debug; it means "don't draw client side decorations".
-      # Debug logging is "-D".
-      extraArguments = [
-        "-m"
-        "last"
-      ];
       # The launcher is listed first so it is the active tab; diagnosticTabs sit
       # behind it and are revealed one Ctrl+W at a time.
       program = "${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${
@@ -225,59 +189,12 @@ in
       "loglevel=3"
     ];
 
-    # Wait for a display to exist before starting the compositor.
-    #
-    # DisplayPort over USB-C appears *late*: the port has to complete USB PD
-    # negotiation and enter DP Alt Mode before the connector reports connected.
-    # Measured on this board, cage started at 18.6s while that was still in
-    # progress, came up with no output, and left the boot console on screen —
-    # the kiosk was running and healthy by every service-level check, and the
-    # panel showed text. Restarting cage afterwards fixed it every time, which
-    # is what identified this as a race rather than a compositor fault.
-    #
-    # HDMI is present from early boot, so this costs nothing there.
-    systemd.services.tabletop-wait-display = {
-      description = "Wait for a connected display before starting the kiosk";
-      before = [ "cage-tty1.service" ];
-      wantedBy = [ "graphical.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = true;
-        # Exits 0 on timeout rather than failing: a deliberately headless boot
-        # should still reach a usable, SSH-able system.
-        ExecStart = lib.getExe (
-          pkgs.writeShellApplication {
-            name = "tabletop-wait-display";
-            runtimeInputs = [ pkgs.coreutils ];
-            text = ''
-              for _ in $(seq 1 ${toString cfg.displayTimeoutSeconds}); do
-                for s in /sys/class/drm/card*-*/status; do
-                  if [ "$(cat "$s" 2>/dev/null)" = "connected" ]; then
-                    echo "display ready: $(basename "$(dirname "$s")")"
-                    exit 0
-                  fi
-                done
-                sleep 1
-              done
-              echo "no display after ${toString cfg.displayTimeoutSeconds}s; starting anyway" >&2
-            '';
-          }
-        );
-      };
-    };
-
     # The kiosk is useless without a network, so do not present a login prompt
     # until one exists — otherwise the browser races DHCP and shows an error
     # page that nobody is present to dismiss.
     systemd.services.cage-tty1 = {
-      after = [
-        "network-online.target"
-        "tabletop-wait-display.service"
-      ];
-      wants = [
-        "network-online.target"
-        "tabletop-wait-display.service"
-      ];
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
       serviceConfig = {
         Restart = "always";
         # mkDefault so modules/status.nix can stretch the gap: that pause is
