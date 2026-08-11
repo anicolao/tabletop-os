@@ -117,6 +117,34 @@ in
       '';
     };
 
+    clientStartDelaySeconds = lib.mkOption {
+      type = lib.types.int;
+      default = 5;
+      description = ''
+        How long to wait after the compositor starts before launching the
+        browser.
+
+        Not a cosmetic delay. Chromium launched at the instant cage starts
+        wedges — spinning, with no renderer and no surface — while the same
+        command run against an already-running cage works every time. See
+        services.cage.program below.
+      '';
+    };
+
+    displayTimeoutSeconds = lib.mkOption {
+      type = lib.types.int;
+      default = 45;
+      description = ''
+        How long to wait for a connected display before starting the kiosk
+        anyway.
+
+        Generous on purpose. DisplayPort over USB-C only appears after PD
+        negotiation and alt-mode entry, which on this hardware lands somewhere
+        around 15-20 seconds. Waiting costs nothing on HDMI, which is present
+        from early boot.
+      '';
+    };
+
     extraChromiumFlags = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
@@ -167,11 +195,47 @@ in
     services.cage = {
       enable = true;
       user = cfg.user;
+      # -m last: drive one output, never span.
+      #
+      # cage's default is "-m extend", which joins every connected output into a
+      # single logical surface. With HDMI and DisplayPort both plugged in that
+      # put half the launcher on each panel, offset — the "it was displaying,
+      # but offset as though the two outputs were one big monitor" report.
+      #
+      # With a single cable attached this changes nothing at all, since there is
+      # only one output to choose. It matters only for the both-connected case,
+      # which is explicitly a nice-to-have here.
+      #
+      # NB "-d" is NOT debug; it means "don't draw client side decorations".
+      # Debug logging is "-D".
+      extraArguments = [
+        "-m"
+        "last"
+      ];
       # The launcher is listed first so it is the active tab; diagnosticTabs sit
       # behind it and are revealed one Ctrl+W at a time.
-      program = "${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${
-        lib.concatMapStringsSep " " lib.escapeShellArg ([ cfg.url ] ++ cfg.diagnosticTabs)
-      }";
+      # Chromium is started through a short delay rather than directly.
+      #
+      # cage spawns its client immediately on startup, and a Chromium that
+      # starts into a compositor still bringing its output up wedges: the
+      # browser process spins, then sits with only its three zygotes — no GPU
+      # process, no renderer, no surface — while cage waits forever for a
+      # client that will never map. The panel stays black and every service
+      # reports active.
+      #
+      # This was isolated by elimination. Launched by hand against an
+      # *already running* cage, the very same binary with the very same
+      # arguments, profile and URLs starts correctly every time. Flags,
+      # profile corruption and the launcher URL were each ruled out that way;
+      # the only remaining variable is when the client connects relative to
+      # the compositor finishing setup.
+      program = "${pkgs.writeShellScript "tabletop-kiosk-start" ''
+        # Give cage time to finish binding its output before connecting.
+        sleep ${toString cfg.clientStartDelaySeconds}
+        exec ${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${
+          lib.concatMapStringsSep " " lib.escapeShellArg ([ cfg.url ] ++ cfg.diagnosticTabs)
+        }
+      ''}";
       environment = {
         # Chromium checks this before deciding it can use Wayland at all.
         XDG_SESSION_TYPE = "wayland";
@@ -189,17 +253,206 @@ in
       "loglevel=3"
     ];
 
+    # Wait for a display to exist before starting the compositor.
+    #
+    # The two supported cables appear at very different times. HDMI is present
+    # from early boot. DisplayPort over USB-C is not: the port must complete USB
+    # PD negotiation and enter DP Alt Mode first, which lands around 15-20s on
+    # this board — comfortably after the compositor would otherwise have
+    # started. A compositor that starts with no outputs has nothing to bind and
+    # leaves the boot console on the panel.
+    systemd.services.tabletop-wait-display = {
+      description = "Wait for a connected display before starting the kiosk";
+      before = [ "cage-tty1.service" ];
+      wantedBy = [ "graphical.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        # Exits 0 on timeout rather than failing: a deliberately headless boot
+        # should still reach a usable, SSH-able system.
+        ExecStart = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "tabletop-wait-display";
+            runtimeInputs = [ pkgs.coreutils ];
+            text = ''
+              for i in $(seq 1 ${toString cfg.displayTimeoutSeconds}); do
+                for s in /sys/class/drm/card*-*/status; do
+                  if [ "$(cat "$s" 2>/dev/null)" = "connected" ]; then
+                    echo "display ready: $(basename "$(dirname "$s")") after ''${i}s"
+                    # Settle only when the display arrived late, which means it
+                    # appeared through alt-mode negotiation rather than simply
+                    # being there. Link training and the first EDID read are
+                    # still finishing at that instant; starting into it is how a
+                    # compositor ends up holding an output whose mode is about
+                    # to change underneath it. HDMI matches on the first pass
+                    # and pays nothing.
+                    if [ "$i" -gt 1 ]; then sleep 2; fi
+                    exit 0
+                  fi
+                done
+                sleep 1
+              done
+              echo "no display after ${toString cfg.displayTimeoutSeconds}s; starting anyway" >&2
+            '';
+          }
+        );
+      };
+    };
+
+    # Recover from a compositor that starts without ever acquiring an output.
+    #
+    # Roughly two cold boots in three, cage comes up and never binds a scanout
+    # buffer: the service is active, it holds DRM fds, it spins at ~33% CPU
+    # indefinitely, and [fbcon] keeps the framebuffer while Chromium sits at
+    # four processes waiting for a surface that never maps. Every service-level
+    # check calls this healthy. The panel is black.
+    #
+    # It is not a timing race, which is what makes a longer pre-start delay the
+    # wrong fix: across three cold boots the compositor started at 18.1s, 18.5s
+    # and 18.6s, and the *successful* one was the middle. Waiting longer just
+    # moves all three.
+    #
+    # Restarting cage fixes it every time, so this restarts it. That is a
+    # supervisor, not a diagnosis — the underlying wlroots/DRM race is still
+    # unexplained, and WLR_DRM_NO_ATOMIC is the next thing to try. But a kiosk
+    # that recovers itself in 25 seconds beats a correct explanation nobody is
+    # present to act on.
+    systemd.services.tabletop-kiosk-watchdog = {
+      description = "Restart the kiosk if the compositor came up with no output";
+      # Deliberately NOT ordered After cage-tty1. A unit ordered after the
+      # service it restarts deadlocks against its own ordering: the restart job
+      # cannot run while the dependent unit is still active, so `systemctl
+      # restart` blocks. Measured — the first two attempts landed 115s apart
+      # rather than the 25s this loop sleeps, and neither took effect. The
+      # sleep below is what sequences this after cage, not an ordering edge.
+      #
+      # It IS ordered after the display gate, which is a different unit and so
+      # creates no cycle. Without that it ran before DisplayPort finished
+      # alt-mode negotiation, found no connected output, and exited with
+      # "nothing to supervise" on every single boot.
+      after = [ "tabletop-wait-display.service" ];
+      wantedBy = [ "graphical.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "tabletop-kiosk-watchdog";
+            runtimeInputs = with pkgs; [
+              coreutils
+              gnugrep
+              procps
+              systemd
+            ];
+            text = ''
+              # The wedge signature is precise: the browser process spins, then
+              # sits with only its three zygotes — four processes, no renderer
+              # and no GPU process — so it never maps a surface and the
+              # compositor has nothing to scan out. A healthy tree has renderers.
+              #
+              # Deliberately not the DRM framebuffer via debugfs, which was the
+              # first attempt: /sys/kernel/debug is not reliably readable this
+              # early in boot, and the check silently degraded to "not
+              # supervising" on every boot while appearing to work. A watchdog
+              # whose detection can fail open is worse than none, because it
+              # reports success either way.
+              kiosk_is_rendering() {
+                # Anchored on chromium: a bare "--type=renderer" pattern also
+                # matches any shell whose own command line mentions it, which
+                # is an easy way to get a watchdog that always sees health.
+                pgrep -f -- "chromium.*--type=renderer" >/dev/null 2>&1
+              }
+
+              display_connected() {
+                for s in /sys/class/drm/card*-*/status; do
+                  if [ "$(cat "$s" 2>/dev/null)" = "connected" ]; then
+                    return 0
+                  fi
+                done
+                return 1
+              }
+
+              # A deliberately headless boot is not a fault.
+              if ! display_connected; then
+                echo "no display attached; nothing to supervise"
+                exit 0
+              fi
+
+              for attempt in 1 2 3; do
+                # Long enough for cage to bind an output and for Chromium to
+                # map its first surface on a cold boot.
+                sleep 25
+                if kiosk_is_rendering; then
+                  echo "kiosk is rendering (after $((attempt - 1)) restarts)"
+                  exit 0
+                fi
+                echo "kiosk has no renderer; restarting cage (attempt $attempt)" >&2
+                # --no-block: do not wait on the job. Waiting is what made the
+                # earlier version take 90s per attempt and recover nothing.
+                systemctl restart --no-block cage-tty1 || true
+              done
+
+              echo "still no renderer after 3 restarts; leaving it alone" >&2
+            '';
+          }
+        );
+      };
+    };
+
     # The kiosk is useless without a network, so do not present a login prompt
     # until one exists — otherwise the browser races DHCP and shows an error
     # page that nobody is present to dismiss.
     systemd.services.cage-tty1 = {
-      after = [ "network-online.target" ];
-      wants = [ "network-online.target" ];
+      after = [
+        "network-online.target"
+        "tabletop-wait-display.service"
+      ];
+      wants = [
+        "network-online.target"
+        "tabletop-wait-display.service"
+      ];
       serviceConfig = {
         Restart = "always";
         # mkDefault so modules/status.nix can stretch the gap: that pause is
         # when the on-console status notice is readable.
         RestartSec = lib.mkDefault 5;
+
+        # cage does not exit on SIGTERM. Without this it sits out systemd's
+        # default 90s stop timeout before being killed, which makes every
+        # restart effectively a no-op on any shorter timescale: the watchdog's
+        # three restart attempts, 25s apart, all queued behind a single stop
+        # that had not finished, and `journalctl` recorded exactly one
+        # "Started cage-tty1" for the whole boot. It is also why
+        # `nixos-rebuild switch` leaves this unit failed with exit 4.
+        #
+        # Five seconds of grace, then SIGKILL. There is nothing to flush: the
+        # compositor holds no state worth saving, and the browser is launched
+        # with crash-restore suppressed.
+        TimeoutStopSec = 5;
+
+        # Clear Chromium's process singleton before every start.
+        #
+        # This is the wedge. Chromium writes SingletonLock, SingletonSocket and
+        # SingletonCookie into its profile, and removes them only on a clean
+        # exit. The socket they point at lives under /tmp, which is tmpfs and is
+        # wiped on every boot; the profile is on disk and is not. So after any
+        # unclean stop — a power cycle, which is how a tabletop is switched off
+        # — the next boot starts a browser that finds a lock naming a dead PID,
+        # tries to hand off to a singleton whose socket no longer exists, and
+        # spins. Observed exactly: the browser process burning ~70% CPU with
+        # only its three zygotes, no GPU process, no renderer, and therefore no
+        # surface for the compositor to scan out. The panel stays black while
+        # every service reports active.
+        #
+        # That also explains why it was intermittent rather than constant: it
+        # depends entirely on how the previous session ended.
+        ExecStartPre = [
+          "-${pkgs.writeShellScript "clear-chromium-singleton" ''
+            rm -f "/home/${cfg.user}/.config/chromium/SingletonLock" \
+                  "/home/${cfg.user}/.config/chromium/SingletonSocket" \
+                  "/home/${cfg.user}/.config/chromium/SingletonCookie"
+          ''}"
+        ];
       };
     };
 

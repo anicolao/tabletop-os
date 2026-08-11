@@ -35,12 +35,18 @@ devices=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 || true)
 
 # Video and audio devices are numbered in separate sequences under the same
 # format, so stop at the audio header or risk matching a microphone.
+#
+# The trailing `|| true` is load-bearing. Under `set -o pipefail` a no-match
+# from grep fails the whole pipeline, and `set -e` then kills the script *at
+# the assignment* — before reaching the error message written to explain it.
+# The first time this camera dropped off the bus, that produced a bare exit 1
+# with no output at all. An unreachable error path is worse than none.
 index=$(printf '%s\n' "$devices" \
   | awk '/AVFoundation audio devices/ { exit } { print }' \
   | grep -E '\[[0-9]+\]' \
   | grep -Ei "$pattern" \
   | head -1 \
-  | sed -E 's/.*\[([0-9]+)\].*/\1/')
+  | sed -E 's/.*\[([0-9]+)\].*/\1/' || true)
 
 if [ -z "$index" ]; then
   echo "no camera matching /$pattern/. Available:" >&2

@@ -22,6 +22,18 @@
   ...
 }:
 
+let
+  # Trade resolution for frame rate on the bring-up panel.
+  #
+  # That display is capped at 4K@30 by its own EDID — Max_TMDS_Character_Rate
+  # 300 MHz, no HDMI Forum block — which caps every frame the GPU produces at
+  # 30 fps no matter how fast Panfrost is. Its CTA block marks 1920x1080@60 as
+  # the native mode, so 1080p doubles the refresh.
+  #
+  # Set to false to go back to 3840x2160@30. Flipping this needs a reboot, not
+  # a reflash: `nixos-rebuild switch --target-host ...` then reboot.
+  forceHdmi1080p60 = false;
+in
 {
   imports = [ "${modulesPath}/installer/sd-card/sd-image.nix" ];
 
@@ -79,6 +91,14 @@
       enable = true;
       name = "rockchip/rk3588-orangepi-5-plus.dtb";
 
+      # Without this, every DTB in the kernel tree is kept *and* every overlay
+      # below is offered to each of them. That is not hypothetical: the
+      # compatible list used to include the generic "rockchip,rk3588", so these
+      # overlays were silently applied to other RK3588 boards' DTBs, and adding
+      # one that references a label those boards lack (usb_con) turned it into
+      # a hard FDT_ERR_NOTFOUND. Ship one board's DTB, patch one board's DTB.
+      filter = "rk3588-orangepi-5-plus.dtb";
+
       # Bring up UART6 on the 40-pin header.
       #
       # Mainline enables only uart2 — the debug UART, on its own 3-pin header,
@@ -100,6 +120,117 @@
       # on the running board rather than assumed, since mainline DTBs are often
       # built without them and label-based overlays then silently fail.
       overlays = [
+        # EXPERIMENTAL: DisplayPort over the USB-C port.
+        #
+        # The attached HDMI panel is limited to 4K@30 — its EDID declares
+        # Max_TMDS_Character_Rate 300 MHz and carries no HDMI Forum block, so
+        # 4K@60 is not something a different cable can unlock. Its DisplayPort
+        # input reportedly does 4K@60, which would lift the 30 fps ceiling that
+        # currently caps everything the GPU can do.
+        #
+        # The pieces are already present: dp@fde50000 exists with
+        # compatible = "rockchip,rk3588-dp" and phys = <&usbdp_phy0 PHY_TYPE_DP>,
+        # CONFIG_ROCKCHIP_DW_DP is built in, usbdp_phy0 is enabled with
+        # mode-switch/orientation-switch and SBU GPIOs, and a Type-C port is
+        # registered. Only the device-tree wiring is missing: dp0 is disabled
+        # and its ports have no remote-endpoint.
+        #
+        # HDMI0 occupies vp0 and HDMI1 occupies vp1, so DP0 goes to vp2 — which
+        # supports 4K, unlike vp3 which is limited to 1080p.
+        #
+        # Deliberately minimal: this touches only dp0 and vp2, and leaves the
+        # usbdp_phy0 port graph alone. Mainline boards that do this also
+        # restructure the PHY's endpoints, but their graph topology differs
+        # from this board's (here SBU sits at reg 1, there at reg 3), and
+        # getting that wrong risks breaking USB rather than merely failing to
+        # produce a display. If a DP connector does not appear in
+        # /sys/class/drm after this, the PHY endpoints are the next thing to
+        # add — see rk3588s-indiedroid-nova.dts for the full pattern.
+        {
+          name = "dp0-over-usbc";
+          dtsText = ''
+            /dts-v1/;
+            /plugin/;
+
+            / {
+              compatible = "xunlong,orangepi-5-plus";
+
+              fragment@0 {
+                target = <&dp0>;
+                __overlay__ {
+                  status = "okay";
+                };
+              };
+
+              fragment@1 {
+                target = <&dp0_in>;
+                __overlay__ {
+                  dp0_in_vp2: endpoint {
+                    remote-endpoint = <&vp2_out_dp0>;
+                  };
+                };
+              };
+
+              fragment@2 {
+                target = <&vp2>;
+                __overlay__ {
+                  #address-cells = <1>;
+                  #size-cells = <0>;
+
+                  /* reg 10 = ROCKCHIP_VOP2_EP_DP0, hardcoded rather than
+                     included: overlay compilation does not reliably have the
+                     kernel's dt-bindings headers on its include path. */
+                  vp2_out_dp0: endpoint@a {
+                    reg = <10>;
+                    remote-endpoint = <&dp0_in_vp2>;
+                  };
+                };
+              };
+            };
+          '';
+        }
+        # Declare DisplayPort Alt Mode on the USB-C connector.
+        #
+        # Without this, tcpm never learns the port can do DP: plugging in a
+        # USB-C-to-DisplayPort cable completes USB PD negotiation, reports
+        # `orientation normal`, and registers no alt mode at all, leaving
+        # DP-1 permanently `disconnected`.
+        #
+        # Purely additive, and deliberately so. The PHY port graph is NOT
+        # touched: the rockchip usbdp phy driver never calls of_graph — it
+        # takes its DP path from typec_mux_register/typec_switch_register,
+        # driven by the mode-switch and orientation-switch properties this
+        # board already sets, plus dp0's existing
+        # `phys = <&usbdp_phy0 PHY_TYPE_DP>`. Restructuring those endpoints,
+        # as mainline example boards do, would risk USB — and with it the
+        # touchscreen — for no benefit.
+        #
+        # `rockchip,dp-lane-mux` is also deliberately omitted: the driver
+        # treats it as optional and, absent it, follows whatever lane count
+        # DP Alt Mode negotiates, which is the more flexible behaviour.
+        {
+          name = "usbc-displayport-altmode";
+          dtsText = ''
+            /dts-v1/;
+            /plugin/;
+
+            / {
+              compatible = "xunlong,orangepi-5-plus";
+
+              fragment@0 {
+                target = <&usb_con>;
+                __overlay__ {
+                  altmodes {
+                    displayport {
+                      svid = /bits/ 16 <0xff01>;
+                      vdo = <0xffffffff>;
+                    };
+                  };
+                };
+              };
+            };
+          '';
+        }
         {
           name = "uart6m1-on-40pin-header";
           dtsText = ''
@@ -113,7 +244,7 @@
                  compatible at all the intersection is empty, so the overlay
                  is dropped with only a line in the build log and a DTB that
                  is byte-identical to the original. */
-              compatible = "xunlong,orangepi-5-plus", "rockchip,rk3588";
+              compatible = "xunlong,orangepi-5-plus";
 
               fragment@0 {
                 target = <&uart6>;
@@ -144,6 +275,25 @@
         libva
         libva-vdpau-driver
       ];
+    };
+  };
+
+  # Force 1920x1080@60 by substituting the display's EDID.
+  #
+  # `video=HDMI-A-2:1920x1080@60` does NOT work here, which is worth recording:
+  # it lands on the kernel command line and the connector does list 1080p modes,
+  # but cage/wlroots picks the connector's *preferred* mode and ignores the
+  # kernel's command-line mode entirely. Verified — the cmdline was correct and
+  # the output stayed at 3840x2160@30.
+  #
+  # Replacing the EDID changes which mode is preferred, which cage does honour.
+  # The modeline is the standard CEA-861 1080p60 timing.
+  hardware.display = lib.mkIf forceHdmi1080p60 {
+    edid.modelines."TT1080p60" =
+      "148.50  1920 2008 2052 2200  1080 1084 1089 1125  +hsync +vsync";
+    outputs."HDMI-A-2" = {
+      edid = "TT1080p60.bin";
+      mode = "e"; # force the connector enabled
     };
   };
 
