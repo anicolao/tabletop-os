@@ -41,6 +41,19 @@ nix build .#image                          # same, but leaves ./result
 nix build .#toplevel
 ```
 
+### Seeing what the table is doing
+
+```sh
+nix run .#screenshot    # what the compositor drew, captured over SSH
+nix run .#photo         # what the panel emits, via a webcam above the table
+```
+
+Use them together. A good screenshot with a black photo means the fault is the
+cable, the monitor's input selection, or the panel — and no change in this
+repository will fix it. Both black means the fault is ours. Guessing at this
+from `systemctl is-active` once cost an entire evening; see
+[docs/DISPLAYPORT-TEST.md](docs/DISPLAYPORT-TEST.md).
+
 An SD image is a file rather than a program, so `nix run .#image` is wired to
 an app that builds it and prints the path plus the `dd` invocation — otherwise
 it would fail with a bare "No such file or directory".

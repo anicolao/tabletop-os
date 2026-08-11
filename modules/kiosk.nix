@@ -205,6 +205,13 @@ in
 
     hardware.graphics.enable = true;
 
+    # grim captures the compositor's framebuffer, which is the only way to tell
+    # "the kiosk is broken" apart from "the panel is not showing what the kiosk
+    # drew". Part of the system closure rather than fetched on demand,
+    # because the moment it is needed is exactly the moment the device's
+    # network and display are both in question. See scripts/screenshot.sh.
+    environment.systemPackages = [ pkgs.grim ];
+
     nixpkgs.config.allowUnfree = true;
   };
 }

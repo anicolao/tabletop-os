@@ -41,20 +41,31 @@ churn*, not a cause of crashes.
 
 The tests below are designed to separate those.
 
-## Before starting
+## Two channels, and why both
 
-Rule out the physical layer first, since it dominated last time:
-
-- Set the monitor's input **explicitly**, not on auto-select.
-- Use one cable at a time. Note which physical port.
-- After any change, capture what the board thinks it is showing:
+There is now a webcam suspended above the table, attached to the Mac. That
+gives two independent views:
 
 ```sh
-nix run .#screenshot
+nix run .#screenshot   # what the compositor drew   — the software's claim
+nix run .#photo        # what the panel emits       — the world's answer
 ```
 
-A correct image with a black panel means the fault is the cable, the input
-selection, or the monitor — nothing in this repository will fix it.
+Their **disagreement** is the diagnosis:
+
+| screenshot | photo | meaning |
+|---|---|---|
+| good | good | working — the fault, if any, is elsewhere |
+| good | black | cable, monitor input, or panel. Nothing here will fix it. |
+| black | black | ours. Start with cage and Chromium. |
+| black | good | impossible; distrust the capture before believing this |
+
+Row two is the one that cost an evening. Every software signal on the board
+said healthy, and every one of them was right.
+
+Before starting, still rule out the obvious physical causes: set the monitor's
+input **explicitly** rather than auto-select, and use one cable at a time,
+noting the physical port.
 
 ## Restoring the DisplayPort work
 
@@ -125,8 +136,14 @@ ssh admin@tabletop-opi5plus '
   for c in /sys/class/drm/card*-*/status; do echo "$c $(cat $c)"; done
 '
 nix run .#screenshot
+nix run .#photo
 ```
 
-The screenshot is the important one. It is the only artefact that distinguishes
-"the kiosk is broken" from "the panel is not showing what the kiosk drew", and
-failing to take one is what cost the previous session.
+Take both, every time, and read them as a pair against the table above. A
+coredump count says something crashed; only these two together say whether
+anyone watching the table would have noticed.
+
+Note that `.#photo` can also answer a question `.#screenshot` cannot: whether
+the panel went black *without* the compositor noticing. If a crash leaves
+Chromium restarting behind a blank panel, the pair will show it — a good
+screenshot alongside a black photo, taken seconds apart, at a known time.

@@ -20,15 +20,24 @@ out="${2:-tabletop-screen.png}"
 echo "capturing from $host ..."
 
 # grim needs the compositor's own environment. cage runs as `kiosk`, and its
-# wayland socket lives in that user's runtime directory.
+# wayland socket lives in that user's runtime directory — which is mode 0700, so
+# even listing it needs sudo. `|| true` because a failed lookup must reach the
+# error message below rather than being killed by `set -e` with nothing printed.
 # shellcheck disable=SC2016  # deliberate: this expands on the *remote* shell
 remote='
   set -e
-  sock=$(ls /run/user/1001/ 2>/dev/null | grep -m1 "^wayland-[0-9]*$")
+  sock=$(sudo ls /run/user/1001/ 2>/dev/null | grep -m1 "^wayland-[0-9]*$" || true)
   if [ -z "$sock" ]; then echo "no wayland socket: is cage running?" >&2; exit 1; fi
+  # Prefer a grim from the system closure; fall back to fetching one. The
+  # fallback needs both a network and the nix daemon, neither of which is a safe
+  # assumption on a board whose display is already suspect.
+  if command -v grim >/dev/null 2>&1; then
+    grimcmd="grim"
+  else
+    grimcmd="nix --extra-experimental-features \"nix-command flakes\" run nixpkgs#grim --"
+  fi
   sudo -u kiosk XDG_RUNTIME_DIR=/run/user/1001 WAYLAND_DISPLAY="$sock" \
-    nix --extra-experimental-features "nix-command flakes" \
-    run nixpkgs#grim -- /tmp/tabletop-screen.png >/dev/null 2>&1
+    sh -c "$grimcmd /tmp/tabletop-screen.png" >/dev/null 2>&1
   echo ok
 '
 

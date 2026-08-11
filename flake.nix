@@ -154,6 +154,36 @@
           meta.description = "Screenshot what the kiosk is actually rendering";
         };
 
+      # Photograph the panel itself. The camera is attached to the Mac, so unlike
+      # the other apps here this one acts on the host, not the board.
+      photoApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-photo";
+            runtimeInputs = with hp; [
+              ffmpeg
+              imagemagick
+              gnugrep
+              gnused
+              gawk
+            ];
+            text = ''
+              # Matches the external webcam rather than either built-in camera.
+              # A name pattern rather than a USB product ID, so replacing the
+              # camera does not mean editing the flake.
+              TABLETOP_CAMERA="USB Camera|Webcam|HD Pro"
+            ''
+            + builtins.readFile ./scripts/photo.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-photo";
+          meta.description = "Photograph the tabletop panel with the overhead webcam";
+        };
+
       burnApp =
         hostSystem: boardName: imageDrv:
         let
@@ -265,6 +295,7 @@
         vm = vmApp target;
         image = imageApp target;
         screenshot = screenshotApp target;
+        photo = photoApp target;
         burn = burnApp target "opi5plus" image;
         burn-rpi5 = burnApp target "rpi5" rpi5Image;
       };
@@ -272,6 +303,7 @@
         vm = vmApp "aarch64-darwin";
         image = imageApp "aarch64-darwin";
         screenshot = screenshotApp "aarch64-darwin";
+        photo = photoApp "aarch64-darwin";
         burn = burnApp "aarch64-darwin" "opi5plus" image;
         burn-rpi5 = burnApp "aarch64-darwin" "rpi5" rpi5Image;
       };

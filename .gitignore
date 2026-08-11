@@ -9,3 +9,8 @@
 *.qcow2
 *.ppm
 *.sock
+
+# Diagnostic captures. Both are written into the working directory by default
+# and are snapshots of a moment, not artifacts worth versioning.
+tabletop-screen.png
+tabletop-photo.jpg
