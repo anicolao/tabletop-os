@@ -184,6 +184,35 @@
           meta.description = "Photograph the tabletop panel with the overhead webcam";
         };
 
+      # Drive the kiosk's browser over CDP. Runs on the host: it tunnels to the
+      # board's loopback-bound DevTools port.
+      cdpApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-cdp";
+            runtimeInputs = with hp; [
+              openssh
+              curl
+              jq
+              websocat
+              gawk
+              gnused
+            ];
+            text = ''
+              TABLETOP_HOST=admin@tabletop-opi5plus
+              TABLETOP_CDP_PORT=9222
+            ''
+            + builtins.readFile ./scripts/cdp.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-cdp";
+          meta.description = "Profile and drive the kiosk browser over DevTools";
+        };
+
       burnApp =
         hostSystem: boardName: imageDrv:
         let
@@ -296,6 +325,7 @@
         image = imageApp target;
         screenshot = screenshotApp target;
         photo = photoApp target;
+        cdp = cdpApp target;
         burn = burnApp target "opi5plus" image;
         burn-rpi5 = burnApp target "rpi5" rpi5Image;
       };
@@ -304,6 +334,7 @@
         image = imageApp "aarch64-darwin";
         screenshot = screenshotApp "aarch64-darwin";
         photo = photoApp "aarch64-darwin";
+        cdp = cdpApp "aarch64-darwin";
         burn = burnApp "aarch64-darwin" "opi5plus" image;
         burn-rpi5 = burnApp "aarch64-darwin" "rpi5" rpi5Image;
       };

@@ -48,6 +48,17 @@ nix run .#screenshot    # what the compositor drew, captured over SSH
 nix run .#photo         # what the panel emits, via a webcam above the table
 ```
 
+```sh
+nix run .#cdp -- gpu      # what is hardware accelerated
+nix run .#cdp -- fps      # frames actually delivered
+nix run .#cdp -- profile-swipe 1200 1080 2600 1080   # profile a real interaction
+```
+
+`cdp` drives the kiosk's browser over DevTools — synthetic touch, frame rate,
+and JS CPU profiles, all remotely. See
+[docs/GRAPHICS-PERF.md](docs/GRAPHICS-PERF.md), which is the guide to hand
+anyone optimising the launcher.
+
 Use them together. A good screenshot with a black photo means the fault is the
 cable, the monitor's input selection, or the panel — and no change in this
 repository will fix it. Both black means the fault is ours. Guessing at this
