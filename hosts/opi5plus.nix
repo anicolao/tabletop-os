@@ -91,6 +91,14 @@ in
       enable = true;
       name = "rockchip/rk3588-orangepi-5-plus.dtb";
 
+      # Without this, every DTB in the kernel tree is kept *and* every overlay
+      # below is offered to each of them. That is not hypothetical: the
+      # compatible list used to include the generic "rockchip,rk3588", so these
+      # overlays were silently applied to other RK3588 boards' DTBs, and adding
+      # one that references a label those boards lack (usb_con) turned it into
+      # a hard FDT_ERR_NOTFOUND. Ship one board's DTB, patch one board's DTB.
+      filter = "rk3588-orangepi-5-plus.dtb";
+
       # Bring up UART6 on the 40-pin header.
       #
       # Mainline enables only uart2 — the debug UART, on its own 3-pin header,
@@ -145,7 +153,7 @@ in
             /plugin/;
 
             / {
-              compatible = "xunlong,orangepi-5-plus", "rockchip,rk3588";
+              compatible = "xunlong,orangepi-5-plus";
 
               fragment@0 {
                 target = <&dp0>;
@@ -181,6 +189,48 @@ in
             };
           '';
         }
+        # Declare DisplayPort Alt Mode on the USB-C connector.
+        #
+        # Without this, tcpm never learns the port can do DP: plugging in a
+        # USB-C-to-DisplayPort cable completes USB PD negotiation, reports
+        # `orientation normal`, and registers no alt mode at all, leaving
+        # DP-1 permanently `disconnected`.
+        #
+        # Purely additive, and deliberately so. The PHY port graph is NOT
+        # touched: the rockchip usbdp phy driver never calls of_graph — it
+        # takes its DP path from typec_mux_register/typec_switch_register,
+        # driven by the mode-switch and orientation-switch properties this
+        # board already sets, plus dp0's existing
+        # `phys = <&usbdp_phy0 PHY_TYPE_DP>`. Restructuring those endpoints,
+        # as mainline example boards do, would risk USB — and with it the
+        # touchscreen — for no benefit.
+        #
+        # `rockchip,dp-lane-mux` is also deliberately omitted: the driver
+        # treats it as optional and, absent it, follows whatever lane count
+        # DP Alt Mode negotiates, which is the more flexible behaviour.
+        {
+          name = "usbc-displayport-altmode";
+          dtsText = ''
+            /dts-v1/;
+            /plugin/;
+
+            / {
+              compatible = "xunlong,orangepi-5-plus";
+
+              fragment@0 {
+                target = <&usb_con>;
+                __overlay__ {
+                  altmodes {
+                    displayport {
+                      svid = /bits/ 16 <0xff01>;
+                      vdo = <0xffffffff>;
+                    };
+                  };
+                };
+              };
+            };
+          '';
+        }
         {
           name = "uart6m1-on-40pin-header";
           dtsText = ''
@@ -194,7 +244,7 @@ in
                  compatible at all the intersection is empty, so the overlay
                  is dropped with only a line in the build log and a DTB that
                  is byte-identical to the original. */
-              compatible = "xunlong,orangepi-5-plus", "rockchip,rk3588";
+              compatible = "xunlong,orangepi-5-plus";
 
               fragment@0 {
                 target = <&uart6>;
