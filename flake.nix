@@ -128,6 +128,32 @@
           meta.description = "Boot the tabletop kiosk in QEMU";
         };
 
+      # Capture what the board is rendering. See scripts/screenshot.sh for why
+      # this earns its place.
+      screenshotApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-screenshot";
+            runtimeInputs = with hp; [
+              openssh
+              imagemagick
+              gnugrep
+              gawk
+            ];
+            text = ''
+              TABLETOP_HOST=admin@tabletop-opi5plus
+            ''
+            + builtins.readFile ./scripts/screenshot.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-screenshot";
+          meta.description = "Screenshot what the kiosk is actually rendering";
+        };
+
       burnApp =
         hostSystem: boardName: imageDrv:
         let
@@ -238,12 +264,14 @@
       apps.${target} = {
         vm = vmApp target;
         image = imageApp target;
+        screenshot = screenshotApp target;
         burn = burnApp target "opi5plus" image;
         burn-rpi5 = burnApp target "rpi5" rpi5Image;
       };
       apps.aarch64-darwin = {
         vm = vmApp "aarch64-darwin";
         image = imageApp "aarch64-darwin";
+        screenshot = screenshotApp "aarch64-darwin";
         burn = burnApp "aarch64-darwin" "opi5plus" image;
         burn-rpi5 = burnApp "aarch64-darwin" "rpi5" rpi5Image;
       };
