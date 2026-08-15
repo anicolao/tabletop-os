@@ -14,3 +14,7 @@
 # and are snapshots of a moment, not artifacts worth versioning.
 tabletop-screen.png
 tabletop-photo.jpg
+
+# SPI flash backups taken by `nix run .#flash-spi`. Point-in-time dumps of a
+# specific board, not something to version.
+spi-backup-*.bin

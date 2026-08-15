@@ -41,6 +41,18 @@ nix build .#image                          # same, but leaves ./result
 nix build .#toplevel
 ```
 
+### Moving a board to its SSD
+
+```sh
+nix run .#provision-ssd    # partition the SSD and install onto it
+nix run .#flash-spi        # write U-Boot to SPI, making the SSD bootable
+```
+
+Run in that order with the SD card inserted; U-Boot tries mmc before nvme, so
+the card keeps winning until it is removed. That is what lets each step be
+verified before anything depends on it, and it leaves the card as a rescue path
+that works by being inserted. See [docs/SSD-BOOT.md](docs/SSD-BOOT.md).
+
 ### Seeing what the table is doing
 
 ```sh

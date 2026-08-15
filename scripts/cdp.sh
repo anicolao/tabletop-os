@@ -177,6 +177,45 @@ case "$cmd" in
       | if ($e|length)>0 then {errors:$e} else {swiped:true, messages:(length)} end'
     ;;
 
+  metrics-drag)
+    # Attribute a drag's frame time: style, layout and script are counted by the
+    # Performance domain, so whatever is missing from the wall clock is paint,
+    # raster and compositing — which no CPU profile of the main thread shows.
+    ensure_tunnel
+    secs="${1:-3}"
+    ws=$(page_ws)
+    drag_js='new Promise(res=>{
+      const surf=document.querySelector("main");
+      Element.prototype.setPointerCapture=function(){};Element.prototype.releasePointerCapture=function(){};
+      const mk=(t,x,y)=>new PointerEvent(t,{pointerId:95,pointerType:"touch",isPrimary:true,button:0,buttons:t==="pointerup"?0:1,clientX:x,clientY:y,bubbles:true,cancelable:true});
+      let frames=0,t0=performance.now();
+      const count=()=>{frames++;if(performance.now()-t0<'"${secs}"'000)requestAnimationFrame(count);};
+      requestAnimationFrame(count);
+      surf.dispatchEvent(mk("pointerdown",1100,500));
+      let i=0;
+      (function step(){ i++; surf.dispatchEvent(mk("pointermove",1100+((i*40)%1600),500));
+        if(performance.now()-t0<'"${secs}"'000-300) requestAnimationFrame(step);
+        else { surf.dispatchEvent(mk("pointerup",1500,500));
+          setTimeout(()=>res(JSON.stringify({fps:+(frames*1000/(performance.now()-t0)).toFixed(1),frames})),200); }
+      })();
+    })'
+    send_seq "$ws"       '{"id":1,"method":"Performance.enable"}'       '{"id":2,"method":"Performance.getMetrics"}'       "$(jq -nc --arg e "$drag_js" '{id:3,method:"Runtime.evaluate",params:{expression:$e,awaitPromise:true,returnByValue:true}}')"       "sleep:$((secs + 2))"       '{"id":4,"method":"Performance.getMetrics"}'       > /tmp/.cdp-metrics.$$ 2>/dev/null
+    jq -rs '
+      (map(select(.id==2))[0].result.metrics // []) as $a
+      | (map(select(.id==4))[0].result.metrics // []) as $b
+      | (map(select(.id==3))[0].result.result.value // "{}") as $drag
+      | ($a | map({key:.name,value:.value}) | from_entries) as $A
+      | ($b | map({key:.name,value:.value}) | from_entries) as $B
+      | "drag: \($drag)",
+        "  wall clock      \(((($B.Timestamp // 0) - ($A.Timestamp // 0)) * 1000) | floor) ms",
+        "  ScriptDuration  \(((($B.ScriptDuration // 0) - ($A.ScriptDuration // 0)) * 1000) | floor) ms",
+        "  RecalcStyle     \(((($B.RecalcStyleDuration // 0) - ($A.RecalcStyleDuration // 0)) * 1000) | floor) ms  (\((($B.RecalcStyleCount // 0) - ($A.RecalcStyleCount // 0))) passes)",
+        "  Layout          \(((($B.LayoutDuration // 0) - ($A.LayoutDuration // 0)) * 1000) | floor) ms  (\((($B.LayoutCount // 0) - ($A.LayoutCount // 0))) passes)",
+        "  TaskDuration    \(((($B.TaskDuration // 0) - ($A.TaskDuration // 0)) * 1000) | floor) ms  (all main-thread work)"
+      ' /tmp/.cdp-metrics.$$
+    rm -f /tmp/.cdp-metrics.$$
+    ;;
+
   profile-swipe)
     # Profile *while* interacting, in one CDP session.
     #
@@ -247,6 +286,7 @@ usage: nix run .#cdp -- <command>
   tap X Y                       synthetic touch tap (CSS pixels)
   swipe X1 Y1 X2 Y2 [steps] [ms]  synthetic touch drag
   profile [seconds] [outfile]   JS CPU profile + top functions by self time
+  metrics-drag [seconds]        style/layout/script attribution across a drag
   profile-swipe X1 Y1 X2 Y2 [reps] [ms] [out]
                                 profile WHILE swiping, in one session
 

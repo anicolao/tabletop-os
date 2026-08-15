@@ -14,11 +14,14 @@
 #   - Linux 6.13  HDMI output on RK3588 becomes possible at all
 #   - Linux 7.0   HDMI 2.1 FRL, plus H.264/HEVC stateless decoders
 # `linuxPackages_latest` is therefore a hard requirement, not a preference.
+# Boot medium is deliberately NOT chosen here. This file is the board: SoC,
+# kernel, device tree, GPU, panel. Whether it boots from the SD card or from the
+# NVMe SSD is a separate module composed alongside it in flake.nix — see
+# hosts/opi5plus-sd.nix and hosts/opi5plus-nvme.nix, and docs/SSD-BOOT.md.
 {
   config,
   lib,
   pkgs,
-  modulesPath,
   ...
 }:
 
@@ -35,8 +38,6 @@ let
   forceHdmi1080p60 = false;
 in
 {
-  imports = [ "${modulesPath}/installer/sd-card/sd-image.nix" ];
-
   networking.hostName = "tabletop-opi5plus";
 
   # Loopback-only; reach it with
@@ -48,9 +49,9 @@ in
 
     loader = {
       grub.enable = false;
-      # U-Boot's distro boot scans the bootable partition for
-      # /boot/extlinux/extlinux.conf. sdImage.populateRootCommands below writes
-      # exactly that.
+      # U-Boot's distro boot scans each device in turn for
+      # /boot/extlinux/extlinux.conf. That is the same on both media: on the SD
+      # card the image build writes it, on the SSD nixos-install does.
       generic-extlinux-compatible.enable = true;
     };
 
@@ -306,38 +307,4 @@ in
   # one job per core with roughly 1 GB each. Lower it if a big link step starts
   # getting OOM-killed; there is no swap here beyond zram.
   nix.settings.max-jobs = lib.mkDefault 8;
-
-  sdImage = {
-    # Flashing tools on macOS handle a raw .img more predictably than .img.zst,
-    # and the size difference does not matter over USB.
-    compressImage = false;
-    # (option is `image.baseName`; `sdImage.imageBaseName` was renamed)
-
-    # Rockchip boot ROM loads from a fixed offset near the start of the card,
-    # so the first partition has to get out of the way. u-boot-rockchip.bin is
-    # ~9.1 MiB written at sector 64 (32 KiB), so it occupies roughly
-    # 0.03–9.2 MiB. The default 8 MiB partition offset would land inside it;
-    # 16 MiB clears it with room to spare.
-    firmwarePartitionOffset = 16;
-
-    # Nothing on this board reads the FAT partition — U-Boot comes from the raw
-    # offset above and the kernel from ext4. It exists only because sd-image.nix
-    # always creates one.
-    firmwareSize = 16;
-    populateFirmwareCommands = "";
-
-    populateRootCommands = ''
-      mkdir -p ./files/boot
-      ${config.boot.loader.generic-extlinux-compatible.populateCmd} \
-        -c ${config.system.build.toplevel} -d ./files/boot
-    '';
-
-    # u-boot-rockchip.bin is the combined TPL+SPL+U-Boot blob. Writing this one
-    # file at sector 64 is the canonical mainline method; the older two-step
-    # idbloader.img + u-boot.itb dance is no longer necessary.
-    postBuildCommands = ''
-      dd if=${pkgs.ubootOrangePi5Plus}/u-boot-rockchip.bin of=$img \
-         seek=64 conv=notrunc,fsync
-    '';
-  };
 }

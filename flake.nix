@@ -213,6 +213,60 @@
           meta.description = "Profile and drive the kiosk browser over DevTools";
         };
 
+      # Install the NVMe system onto the board's SSD. Destructive, and gated on
+      # typing the device path.
+      provisionSsdApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-provision-ssd";
+            runtimeInputs = with hp; [
+              openssh
+              coreutils
+              nix
+            ];
+            text = ''
+              TABLETOP_HOST=admin@tabletop-opi5plus
+              TABLETOP_SYSTEM=${opi5plus-nvme.config.system.build.toplevel}
+              # Must match fileSystems."/" in hosts/opi5plus-nvme.nix.
+              TABLETOP_LABEL=TABLETOP_ROOT
+            ''
+            + builtins.readFile ./scripts/provision-ssd.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-provision-ssd";
+          meta.description = "Partition and install the NVMe system onto the SSD";
+        };
+
+      # Write U-Boot to SPI NOR, which is what makes the SSD bootable at all.
+      flashSpiApp =
+        hostSystem:
+        let
+          hp = nixpkgs.legacyPackages.${hostSystem};
+          script = hp.writeShellApplication {
+            name = "tabletop-flash-spi";
+            runtimeInputs = with hp; [
+              openssh
+              coreutils
+            ];
+            text = ''
+              TABLETOP_HOST=admin@tabletop-opi5plus
+              TABLETOP_UBOOT_SPI=${
+                nixpkgs.legacyPackages.${target}.ubootOrangePi5Plus
+              }/u-boot-rockchip-spi.bin
+            ''
+            + builtins.readFile ./scripts/flash-spi.sh;
+          };
+        in
+        {
+          type = "app";
+          program = "${script}/bin/tabletop-flash-spi";
+          meta.description = "Write U-Boot into the board's SPI flash";
+        };
+
       burnApp =
         hostSystem: boardName: imageDrv:
         let
@@ -242,7 +296,18 @@
           meta.description = "Write the SD image to a card, with safety checks";
         };
 
-      opi5plus = mkSystem [ ./hosts/opi5plus.nix ];
+      # One board, two boot media. hosts/opi5plus.nix is the board; the second
+      # module chooses where U-Boot and the root filesystem live. See
+      # docs/SSD-BOOT.md.
+      opi5plus = mkSystem [
+        ./hosts/opi5plus.nix
+        ./hosts/opi5plus-sd.nix
+      ];
+
+      opi5plus-nvme = mkSystem [
+        ./hosts/opi5plus.nix
+        ./hosts/opi5plus-nvme.nix
+      ];
 
       # The Pi needs the flake's own nixosSystem wrapper (it layers in the
       # vendor overlays), and its image comes from the sdimage-installer
@@ -291,6 +356,8 @@
       # inspecting the closure without building a multi-gigabyte image.
       toplevel = opi5plus.config.system.build.toplevel;
 
+      nvmeToplevel = opi5plus-nvme.config.system.build.toplevel;
+
       # `image` and `toplevel` are aarch64-linux derivations, but they are
       # almost always built *from* the laptop, where `nix build .#image`
       # resolves against packages.aarch64-darwin. Exposing them under both
@@ -299,13 +366,13 @@
       rpi5Image = rpi5.config.system.build.sdImage;
 
       commonPackages = {
-        inherit image toplevel rpi5Image;
+        inherit image toplevel nvmeToplevel rpi5Image;
         default = image;
       };
     in
     {
       nixosConfigurations = {
-        inherit opi5plus rpi5;
+        inherit opi5plus opi5plus-nvme rpi5;
         vm = mkVm target;
       };
 
@@ -326,6 +393,8 @@
         screenshot = screenshotApp target;
         photo = photoApp target;
         cdp = cdpApp target;
+        provision-ssd = provisionSsdApp target;
+        flash-spi = flashSpiApp target;
         burn = burnApp target "opi5plus" image;
         burn-rpi5 = burnApp target "rpi5" rpi5Image;
       };
@@ -335,6 +404,8 @@
         screenshot = screenshotApp "aarch64-darwin";
         photo = photoApp "aarch64-darwin";
         cdp = cdpApp "aarch64-darwin";
+        provision-ssd = provisionSsdApp "aarch64-darwin";
+        flash-spi = flashSpiApp "aarch64-darwin";
         burn = burnApp "aarch64-darwin" "opi5plus" image;
         burn-rpi5 = burnApp "aarch64-darwin" "rpi5" rpi5Image;
       };
