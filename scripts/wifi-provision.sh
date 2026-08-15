@@ -48,8 +48,18 @@ fi
 
 # NetworkManager keyfiles are ini; a literal newline would end the value early
 # and silently truncate the passphrase.
+#
+# The newline must come from a variable holding a literal one. Writing the
+# pattern as *"$(printf '\n')"* looks equivalent and is not: command
+# substitution strips trailing newlines, so it expands to the empty string, the
+# pattern collapses to *""*, and that matches every string. The guard then
+# refused every valid wifi.conf. It shipped that way and went unnoticed until
+# the first board that actually used WiFi, because the Orange Pi has Ethernet
+# and never runs this.
+newline='
+'
 case "$ssid$psk" in
-  *"$(printf '\n')"*) echo "error: ssid/psk contain a newline; refusing" >&2; exit 1 ;;
+  *"$newline"*) echo "error: ssid/psk contain a newline; refusing" >&2; exit 1 ;;
 esac
 
 out="$TABLETOP_NM_DIR/tabletop-wifi.nmconnection"

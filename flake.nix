@@ -324,7 +324,19 @@
                 (modulesPath + "/installer/sd-card/sd-image-aarch64-installer.nix")
               ];
               image.baseName = lib.mkOverride 40 "tabletop-os-rpi5";
-              networking.wireless.enable = lib.mkForce false;
+              # nixos-images' image-installer/wifi.nix sets this false while
+              # NetworkManager's module sets it true, which is a real conflict
+              # that has to be resolved one way or the other. Resolve it toward
+              # NetworkManager: that is what installs wpa_supplicant and its
+              # D-Bus activation file, and NetworkManager owns every interface
+              # on this board.
+              #
+              # It was previously forced the other way, which is why the radio
+              # sat permanently "unavailable" with NetworkManager logging
+              # "Failed to D-Bus activate wpa_supplicant service" even after
+              # credentials were provisioned correctly. The Orange Pi has this
+              # true and has always worked.
+              networking.wireless.enable = lib.mkForce true;
             }
           )
           {

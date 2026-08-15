@@ -58,6 +58,30 @@
   # key-only, and root has no keys, so there is no root login at all.
   services.openssh.settings.PermitRootLogin = lib.mkForce "prohibit-password";
 
+  # The installer profile also brings its own networking, and it does not agree
+  # with modules/base.nix. Two concrete failures came from that:
+  #
+  # systemd-networkd runs alongside NetworkManager, which actually owns every
+  # interface here. networkd therefore has nothing to wait for, and
+  # systemd-networkd-wait-online spends its full 121 second timeout before
+  # failing on every boot — delaying network-online.target, and with it the
+  # kiosk, by two minutes.
+  #
+  # iwd is enabled while networkmanager.wifi.backend stays "wpa_supplicant", so
+  # NetworkManager looks for a supplicant that was never installed and reports
+  # the radio as unavailable. The firmware loads and the device exists; nothing
+  # can drive it. That is why WiFi appeared dead even once credentials were
+  # provisioned correctly.
+  #
+  # Both are forced off so this board uses the same NetworkManager-only stack as
+  # the Orange Pi.
+  # systemd.network.enable, not networking.useNetworkd: the installer profile
+  # sets the former directly, so forcing the latter changes nothing and networkd
+  # keeps running. That cost a deploy to discover.
+  systemd.network.enable = lib.mkForce false;
+  networking.useNetworkd = lib.mkForce false;
+  networking.wireless.iwd.enable = lib.mkForce false;
+
   # The touchscreen here is a normal USB HID device, unlike the big table's
   # RAPT panel which needs an external box to translate it. So this is the host
   # where modules/touchscreen.nix earns its keep directly.

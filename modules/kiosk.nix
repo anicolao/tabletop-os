@@ -134,6 +134,24 @@ in
       '';
     };
 
+    clockTimeoutSeconds = lib.mkOption {
+      type = lib.types.int;
+      default = 60;
+      description = ''
+        How long to wait for the clock to be synchronised before starting the
+        kiosk anyway.
+
+        A board whose real-time clock has no battery — the Raspberry Pi 5 as
+        shipped — boots at the epoch, gets advanced to the build date, and only
+        reaches the real time once NTP answers. A browser started in that window
+        validates TLS certificates against a date months in the past and shows a
+        certificate error, and it does not re-evaluate once the clock is fixed.
+
+        Exceeding this is not treated as a failure: a deliberately offline
+        tabletop should still come up.
+      '';
+    };
+
     displayTimeoutSeconds = lib.mkOption {
       type = lib.types.int;
       default = 180;
@@ -484,16 +502,76 @@ in
       };
     };
 
+    # Wait for a correct clock before starting the browser.
+    #
+    # network-online.target is not enough. On a board with no RTC battery the
+    # clock reads 1970 at power-on, systemd advances it to the build date, and
+    # NTP only corrects it once the network answers — which is *after*
+    # network-online.target. A browser started in that window rejects every
+    # certificate as not-yet-valid and shows an error page instead of the
+    # launcher, and it will not recover on its own when the clock jumps.
+    #
+    # Observed on the Raspberry Pi 5: "rpi_rtc: setting system clock to
+    # 1970-01-01", then a kiosk sitting on a certificate error for five months
+    # of apparent clock skew.
+    #
+    # systemd's own systemd-time-wait-sync would do this, but it is ordered
+    # into sysinit.target, long before the network it depends on. A bounded
+    # wait here, next to the display gate that already works this way, keeps
+    # the ordering local and comprehensible.
+    systemd.services.tabletop-wait-clock = {
+      description = "Wait for the clock to be synchronised before starting the kiosk";
+      before = [ "cage-tty1.service" ];
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      wantedBy = [ "graphical.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        # Exits 0 on timeout rather than failing, for the same reason the
+        # display gate does: an offline tabletop should still boot.
+        ExecStart = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "tabletop-wait-clock";
+            runtimeInputs = with pkgs; [
+              coreutils
+              systemd
+            ];
+            text = ''
+              # systemd-timesyncd creates this the moment it accepts a sample;
+              # it is the same marker systemd-time-wait-sync watches.
+              for i in $(seq 1 ${toString cfg.clockTimeoutSeconds}); do
+                if [ -e /run/systemd/timesync/synchronized ]; then
+                  echo "clock synchronised after ''${i}s: $(date -Is)"
+                  exit 0
+                fi
+                # Belt and braces: a machine using something other than
+                # timesyncd will not create that file.
+                if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
+                  echo "clock synchronised after ''${i}s (timedatectl): $(date -Is)"
+                  exit 0
+                fi
+                sleep 1
+              done
+              echo "clock still unsynchronised after ${toString cfg.clockTimeoutSeconds}s; starting anyway" >&2
+            '';
+          }
+        );
+      };
+    };
+
     # The kiosk is useless without a network, so do not present a login prompt
     # until one exists — otherwise the browser races DHCP and shows an error
     # page that nobody is present to dismiss.
     systemd.services.cage-tty1 = {
       after = [
         "network-online.target"
+        "tabletop-wait-clock.service"
         "tabletop-wait-display.service"
       ];
       wants = [
         "network-online.target"
+        "tabletop-wait-clock.service"
         "tabletop-wait-display.service"
       ];
       serviceConfig = {

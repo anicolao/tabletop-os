@@ -59,6 +59,20 @@ in
         Type = "oneshot";
         RemainAfterExit = true;
         ExecStart = lib.getExe provision;
+
+        # Tell NetworkManager to re-read the keyfile, if it is already running.
+        #
+        # At boot the ordering above is enough: the profile exists before
+        # NetworkManager starts. On a nixos-rebuild switch it is not — this
+        # service reruns while NetworkManager is live, which leaves it holding a
+        # cached copy of the connection without the passphrase. The symptom is
+        # obscure and cost real time: NetworkManager logs "no secrets: No agents
+        # were available for this request" and refuses to associate, while the
+        # keyfile on disk is perfectly correct. A reload fixes it immediately.
+        #
+        # `-` prefix: NetworkManager not running is the normal boot case, not a
+        # failure.
+        ExecStartPost = "-${pkgs.networkmanager}/bin/nmcli connection reload";
       };
       unitConfig = {
         # A missing or malformed file is not a failure — the device may be on
