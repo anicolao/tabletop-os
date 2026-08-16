@@ -33,19 +33,24 @@ in
       example = 15;
       description = ''
         Cap the radio's transmit power, in dBm, or null to leave it alone.
+        Null everywhere at present; kept because the mechanism is fiddly enough
+        to be worth not rewriting if it is ever needed.
 
-        This exists because of power, not range. On the battery-powered table
-        the radio comes up at 31 dBm — the regulatory maximum, on 5GHz with an
-        80MHz channel, which is the most expensive mode it has. Scanning at that
-        power means repeated full-power transmit bursts, and on battery the
-        supply collapses partway through: five boots died in the window between
-        systemd-rfkill idling out and wpa_supplicant associating, while boots on
-        wall power survived. The undervoltage warning does not reliably fire,
-        because rpi_volt samples on a ~2s cadence and the collapse is faster
-        than that.
+        The intent was power draw, not range. The radio comes up at 31 dBm — the
+        regulatory maximum, on 5GHz with an 80MHz channel, its most expensive
+        mode — and the hypothesis was that full-power scan bursts were collapsing
+        the battery supply during boot, since several boots died in the window
+        between systemd-rfkill idling out and wpa_supplicant associating.
 
-        15 dBm is roughly a sixtieth of the radiated power of 31 dBm and is
-        ample for an access point in the same room.
+        That hypothesis is not supported. Failed boots later turned up on wall
+        power as well, which the theory does not allow, and the board has since
+        booted repeatedly on battery with no cap at all. The boot failures had
+        some other cause; capping transmit power was not what fixed them.
+
+        Do not reach for this to fix an association problem — it cannot, and it
+        can hurt. A cap only weakens the uplink, and the failure mode actually
+        observed on this hardware was the access point failing to hear us. See
+        the power-save note in this module's config block.
 
         Applied from a udev rule rather than a service, because it has to be in
         force before the first scan, and the first scan happens well before
@@ -73,6 +78,40 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Power save off. This is not a tuning preference — it is the fix for a
+    # WiFi that never once associated.
+    #
+    # brcmfmac defaults to power save on, and on this board that breaks the WPA2
+    # four-way handshake in one specific direction. Traced with wpa_supplicant
+    # at DebugLevel=debug:
+    #
+    #   RX message 1 of 4  ->  Sending EAPOL-Key 2/4
+    #   RX message 3 of 4  ->  Sending EAPOL-Key 4/4
+    #   RX message 3 of 4  ->  Sending EAPOL-Key 4/4     (x4, then reason=15)
+    #
+    # Message 3 arriving at all is the important part: the access point only
+    # sends it after verifying the MIC on our message 2, which proves both ends
+    # derived the same PTK from the same passphrase. The credentials were never
+    # wrong. Our 4/4 simply never reached the AP — the radio was dozing between
+    # the AP's retransmissions — so the AP retried message 3 until it gave up
+    # with reason=15, "4-way handshake timeout".
+    #
+    # Everything confusing about this failure follows from that one fact:
+    #
+    #   - NetworkManager reports "no secrets: No agents were available for this
+    #     request". That is its generic conclusion whenever a handshake times
+    #     out, and it is a red herring: `nmcli --show-secrets` returns the psk
+    #     perfectly well, and the keyfile on disk is correct.
+    #   - It looks intermittent, because power save only engages once the link
+    #     has been idle, so an association early in boot can succeed and the
+    #     next one fail.
+    #   - Raising transmit power does not help. The link is strong in both
+    #     directions; the frame is not weak, it is asleep.
+    #
+    # 14 boots, 18 handshake failures, zero successful associations. With this
+    # off it associated first try and has stayed up.
+    networking.networkmanager.wifi.powersave = false;
+
     # Cap transmit power the moment the interface appears — before the first
     # scan, which is what the boot has to survive. KERNEL=="wl*" matches both
     # wlan0 and the wld0 it is renamed to.
@@ -111,6 +150,68 @@ in
       };
     };
 
+    # Make sure the profile actually activates.
+    #
+    # This was originally written to work around "no secrets: No agents were
+    # available for this request" on first autoconnect. That diagnosis was
+    # wrong: the real fault was the power-save handshake failure documented at
+    # the top of this module, and the retry loop only ever appeared to help
+    # because a later attempt occasionally got its 4/4 out in time.
+    #
+    # It stays because it is still the right thing for a board whose only link
+    # is WiFi — an access point that is slow to appear, or briefly out of range
+    # at power-on, should not cost the table its network for the whole session.
+    # It should now succeed on the first attempt.
+    #
+    # Bounded and exits 0 either way: a tabletop with no access point in range
+    # must still finish booting.
+    systemd.services.tabletop-wifi-connect = {
+      description = "Ensure the WiFi profile is activated";
+      after = [
+        "NetworkManager.service"
+        "tabletop-wifi-provision.service"
+      ];
+      wants = [ "NetworkManager.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "tabletop-wifi-connect";
+            runtimeInputs = with pkgs; [
+              networkmanager
+              coreutils
+              gnugrep
+            ];
+            text = ''
+              # Pick up a keyfile that tabletop-wifi-provision has just written
+              # or changed. This is the reload that used to sit in that unit's
+              # ExecStartPost, where it blocked for 2m21s waiting on a
+              # NetworkManager systemd had not started yet. Here NetworkManager
+              # is already up, so it returns immediately.
+              nmcli connection reload >/dev/null 2>&1 || true
+
+              if ! nmcli -t -f NAME connection show 2>/dev/null | grep -qx tabletop-wifi; then
+                echo "no tabletop-wifi profile; nothing to activate"
+                exit 0
+              fi
+              for attempt in 1 2 3 4 5 6; do
+                if nmcli -t -f DEVICE,STATE,CONNECTION device status 2>/dev/null \
+                     | grep -q "^wl.*:connected:tabletop-wifi$"; then
+                  echo "wifi connected (after $((attempt - 1)) retries)"
+                  exit 0
+                fi
+                nmcli connection up tabletop-wifi >/dev/null 2>&1 || true
+                sleep 5
+              done
+              echo "wifi did not activate after 6 attempts; continuing without it" >&2
+            '';
+          }
+        );
+      };
+    };
+
     systemd.services.tabletop-wifi-provision = {
       description = "Provision WiFi credentials from the SD card";
       # Before NetworkManager, so the profile exists the first time it looks,
@@ -124,19 +225,17 @@ in
         RemainAfterExit = true;
         ExecStart = lib.getExe provision;
 
-        # Tell NetworkManager to re-read the keyfile, if it is already running.
+        # No ExecStartPost here, deliberately. There used to be an
+        # `nmcli connection reload` at this point, to make a live NetworkManager
+        # re-read the keyfile after a nixos-rebuild switch. It cost 2m21s of
+        # every boot.
         #
-        # At boot the ordering above is enough: the profile exists before
-        # NetworkManager starts. On a nixos-rebuild switch it is not — this
-        # service reruns while NetworkManager is live, which leaves it holding a
-        # cached copy of the connection without the passphrase. The symptom is
-        # obscure and cost real time: NetworkManager logs "no secrets: No agents
-        # were available for this request" and refuses to associate, while the
-        # keyfile on disk is perfectly correct. A reload fixes it immediately.
-        #
-        # `-` prefix: NetworkManager not running is the normal boot case, not a
-        # failure.
-        ExecStartPost = "-${pkgs.networkmanager}/bin/nmcli connection reload";
+        # The reason is the `before` ordering above. At boot NetworkManager is
+        # not running yet, so nmcli sits waiting on a D-Bus name belonging to a
+        # unit that systemd will not start until this one finishes — and the `-`
+        # prefix does not help, because the command is not failing, it is
+        # blocking. The reload now lives in tabletop-wifi-connect, which is
+        # ordered after NetworkManager and can therefore actually talk to it.
       };
       unitConfig = {
         # A missing or malformed file is not a failure — the device may be on

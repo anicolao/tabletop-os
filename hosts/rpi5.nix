@@ -106,7 +106,12 @@
   # 2. No Bluetooth. Nothing here uses it, and the BCM4345C0 firmware patch runs
   #    from 9.8s to 10.5s — immediately before the undervoltage, on the same
   #    radio die as the WiFi that is also initialising.
+  #    btsdio is the one that matters and was missed on the first attempt: the
+  #    Pi 5's Bluetooth hangs off SDIO, so btsdio is what pulls the stack in.
+  #    Blacklisting the other three alone left "bluetooth 966656 1 btsdio" in
+  #    lsmod — the reduction had simply not happened.
   boot.blacklistedKernelModules = [
+    "btsdio"
     "btbcm"
     "hci_uart"
     "bluetooth"
@@ -187,8 +192,14 @@
 
   tabletop.wifi.enable = true;
 
-  # The radio defaults to 31 dBm, and its scan bursts at that power are what the
-  # battery cannot supply — see the option's documentation. The access point is
-  # in the same room.
-  tabletop.wifi.txPowerDbm = 15;
+  # No txPowerDbm cap here, deliberately. It was set to 15 dBm on the theory
+  # that full-power scan bursts were browning out the battery, and that theory
+  # did not survive: failed boots happened on wall power too, and the board has
+  # since booted repeatedly on battery without the cap.
+  #
+  # It is also the wrong direction to push. The one proven fragility on this
+  # link is uplink — see modules/wifi.nix on the four-way handshake, where the
+  # access point could not hear our EAPOL 4/4 — and a sixtieth of the radiated
+  # power makes that worse, not better. The option still exists if a future
+  # measurement actually justifies it.
 }
