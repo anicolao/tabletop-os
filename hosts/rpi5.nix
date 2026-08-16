@@ -189,9 +189,9 @@
   # That turns "the tabletop sometimes does not come up" into "the tabletop
   # occasionally takes an extra minute to come up" — which, for an appliance
   # nobody logs into, is the difference that matters.
-  systemd.watchdog = {
-    runtimeTime = "30s";
-    rebootTime = "2min";
+  systemd.settings.Manager = {
+    RuntimeWatchdogSec = "30s";
+    RebootWatchdogSec = "2min";
   };
 
   # The touchscreen here is a normal USB HID device, unlike the big table's
