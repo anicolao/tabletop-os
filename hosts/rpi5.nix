@@ -43,44 +43,33 @@
       config.boot.kernelPackages.kernel.version
     ];
 
-  # The image is built through nixos-images' sdimage-installer module, which
-  # brings installer-profile opinions with it. Some are wrong for a device that
-  # lives permanently on a network, so override them deliberately rather than
-  # letting the installer win by accident.
-  networking.firewall.enable = lib.mkForce true;
+  # The `lib.mkForce` overrides that used to live here are gone, along with the
+  # installer profile they were fighting. flake.nix explains what that profile
+  # was doing; what matters here is that seven forced overrides — firewall on,
+  # ZFS off, PermitRootLogin, systemd-networkd off, useNetworkd off, iwd off,
+  # Tor off — existed only to undo it, one symptom at a time, and were still
+  # losing. Removing the cause removes all of them.
+  #
+  # The one that is worth remembering, because it cost a deploy to find: forcing
+  # `networking.useNetworkd` did nothing, because the profile set
+  # `systemd.network.enable` directly. Two of those overrides also encoded real
+  # failures — systemd-networkd running beside NetworkManager and burning its
+  # full 121s wait-online timeout on every boot, and iwd being enabled while
+  # networkmanager.wifi.backend stayed "wpa_supplicant", which is why the radio
+  # sat permanently "unavailable". Neither can recur now; if either does, the
+  # installer profile has come back.
+  #
+  # There is an assertion at the bottom of this file that fails the build if it
+  # does.
 
-  # The installer profile pulls in ZFS, which drags a kernel-module build along
-  # with it. A kiosk booting from an SD card has no use for it, and building it
-  # is a large fraction of the total image build time.
+  # One of those seven has to stay, and its old comment was wrong about why.
+  # ZFS does not come from the installer profile — it survived its removal, and
+  # a unit diff against the previous build showed twenty zfs-* units reappearing
+  # the moment this line was dropped. It comes from nixos-raspberrypi's own
+  # full config. A kiosk booting from an SD card has no use for it, and it drags
+  # a kernel-module build along with it, which is a large fraction of the total
+  # image build time.
   boot.supportedFilesystems.zfs = lib.mkForce false;
-
-  # The installer profile permits root SSH outright. Keep base.nix's policy:
-  # key-only, and root has no keys, so there is no root login at all.
-  services.openssh.settings.PermitRootLogin = lib.mkForce "prohibit-password";
-
-  # The installer profile also brings its own networking, and it does not agree
-  # with modules/base.nix. Two concrete failures came from that:
-  #
-  # systemd-networkd runs alongside NetworkManager, which actually owns every
-  # interface here. networkd therefore has nothing to wait for, and
-  # systemd-networkd-wait-online spends its full 121 second timeout before
-  # failing on every boot — delaying network-online.target, and with it the
-  # kiosk, by two minutes.
-  #
-  # iwd is enabled while networkmanager.wifi.backend stays "wpa_supplicant", so
-  # NetworkManager looks for a supplicant that was never installed and reports
-  # the radio as unavailable. The firmware loads and the device exists; nothing
-  # can drive it. That is why WiFi appeared dead even once credentials were
-  # provisioned correctly.
-  #
-  # Both are forced off so this board uses the same NetworkManager-only stack as
-  # the Orange Pi.
-  # systemd.network.enable, not networking.useNetworkd: the installer profile
-  # sets the former directly, so forcing the latter changes nothing and networkd
-  # keeps running. That cost a deploy to discover.
-  systemd.network.enable = lib.mkForce false;
-  networking.useNetworkd = lib.mkForce false;
-  networking.wireless.iwd.enable = lib.mkForce false;
 
   # --- Boot-time power smoothing --------------------------------------------
   #
@@ -97,11 +86,12 @@
   #
   # Three reductions, cheapest first.
 
-  # 1. No Tor. hidden-ssh-announce comes from the installer profile and exists
-  #    to publish an onion address during an interactive install. A kiosk has no
-  #    use for it, and starting Tor inside the brownout window is pure cost.
-  services.tor.enable = lib.mkForce false;
-  systemd.services.hidden-ssh-announce.enable = false;
+  # 1. No Tor — nothing to do here any more. Tor and hidden-ssh-announce came
+  #    from the installer profile, which is gone. Disabling them by hand was
+  #    also never as complete as it looked: it stopped the daemon and the
+  #    announce unit, but not the status screen that printed "Onion address:
+  #    Waiting for tor network to be ready..." on tty1 forever, precisely
+  #    *because* Tor would now never be ready.
 
   # 2. No Bluetooth. Nothing here uses it, and the BCM4345C0 firmware patch runs
   #    from 9.8s to 10.5s — immediately before the undervoltage, on the same
@@ -279,4 +269,47 @@
   # access point could not hear our EAPOL 4/4 — and a sixtieth of the radiated
   # power makes that worse, not better. The option still exists if a future
   # measurement actually justifies it.
+
+  # --- Keep the installer profile out ---------------------------------------
+  #
+  # These check for the things that profile did, not for the profile itself,
+  # because the damage was never the module — it was a root password on the
+  # screen and a getty holding the kiosk's VT. An import path can be renamed;
+  # these facts are what actually matter, and they are cheap to assert.
+  #
+  # This exists because the profile was present for the entire life of this
+  # host without anyone noticing, while `hosts/rpi5.nix` disabled its symptoms
+  # one by one. A build-time check is the difference between that and finding
+  # out from a photograph of the table.
+  assertions = [
+    {
+      assertion =
+        config.users.users.root.hashedPassword == null
+        && config.users.users.root.initialHashedPassword == null
+        && config.users.users.root.password == null;
+      message = ''
+        A root password is set on tabletop-rpi5. Nothing in this repository
+        sets one, so an installer profile has come back — nixos-images'
+        image-installer sets one with chpasswd on every activation and prints
+        it on the attached screen. Check flake.nix: this host must use
+        `nixos-raspberrypi.lib.nixosSystemFull`, not `lib.nixosInstaller`.
+      '';
+    }
+    {
+      assertion = config.services.getty.autologinUser == null;
+      message = ''
+        tabletop-rpi5 would autologin ${toString config.services.getty.autologinUser}
+        on the console. Besides being a login nobody asked for, that getty wants
+        the same VT as cage-tty1 and is a suspect for the compositor restarts.
+      '';
+    }
+    {
+      assertion = !config.services.tor.enable && !config.systemd.network.enable;
+      message = ''
+        Tor or systemd-networkd is enabled on tabletop-rpi5. Both arrive with
+        the installer profile; networkd in particular runs beside NetworkManager
+        and burns its full 121s wait-online timeout on every boot.
+      '';
+    }
+  ];
 }

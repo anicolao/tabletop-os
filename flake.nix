@@ -310,33 +310,39 @@
       ];
 
       # The Pi needs the flake's own nixosSystem wrapper (it layers in the
-      # vendor overlays), and its image comes from the sdimage-installer
-      # module rather than nixpkgs' sd-image.nix — which their base module
-      # explicitly disables. Mirrors nixos-raspberrypi's own installerImages.
-      rpi5 = nixos-raspberrypi.lib.nixosInstaller {
+      # vendor overlays), and its image comes from nixos-raspberrypi's
+      # sd-image module rather than nixpkgs' sd-image.nix — which their base
+      # module explicitly disables.
+      #
+      # Deliberately NOT `lib.nixosInstaller`, which is what this used to be.
+      # That helper is exactly `nixosSystemFull` plus the sd-image module plus
+      # `modules/installer/raspberrypi-installer.nix`, and that last one imports
+      # nixpkgs' `profiles/installation-device.nix`. Together with
+      # nixos-images' `sdimage-installer` it was turning a kiosk appliance into
+      # an installation medium:
+      #
+      #   - an activation script that generated a random root password with
+      #     xkcdpass and set it with chpasswd on *every* activation,
+      #   - a `gum`-drawn status box displaying that password, the machine's
+      #     addresses, and "Onion address: Waiting for tor network to be
+      #     ready...", painted on tty1 by an autologin root getty,
+      #   - PermitRootLogin = yes, systemd-networkd, iwd, ZFS, and Tor.
+      #
+      # hosts/rpi5.nix had accumulated seven `lib.mkForce` overrides fighting
+      # those one at a time, and was still losing: the password was on screen
+      # in a photograph, and the getty is a live suspect for the compositor
+      # restarts, since it wants the same VT as cage-tty1.
+      #
+      # Nothing here needs an installer. This board is provisioned by flashing
+      # an image and deploying over SSH.
+      rpi5 = nixos-raspberrypi.lib.nixosSystemFull {
         specialArgs = { inherit nixos-raspberrypi; };
         modules = [
-          nixos-raspberrypi.inputs.nixos-images.nixosModules.sdimage-installer
+          nixos-raspberrypi.nixosModules.sd-image
           (
             { config, lib, modulesPath, ... }:
             {
-              disabledModules = [
-                (modulesPath + "/installer/sd-card/sd-image-aarch64-installer.nix")
-              ];
               image.baseName = lib.mkOverride 40 "tabletop-os-rpi5";
-              # nixos-images' image-installer/wifi.nix sets this false while
-              # NetworkManager's module sets it true, which is a real conflict
-              # that has to be resolved one way or the other. Resolve it toward
-              # NetworkManager: that is what installs wpa_supplicant and its
-              # D-Bus activation file, and NetworkManager owns every interface
-              # on this board.
-              #
-              # It was previously forced the other way, which is why the radio
-              # sat permanently "unavailable" with NetworkManager logging
-              # "Failed to D-Bus activate wpa_supplicant service" even after
-              # credentials were provisioned correctly. The Orange Pi has this
-              # true and has always worked.
-              networking.wireless.enable = lib.mkForce true;
             }
           )
           {

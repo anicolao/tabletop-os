@@ -58,19 +58,17 @@
   # empty list there trips a NixOS assertion at build time rather than producing
   # an image nobody can log into.
   #
-  # This used to claim there was "deliberately no password anywhere", which was
-  # false and worth correcting rather than deleting. The Raspberry Pi image is
-  # built through nixos-images' image-installer module, and that module runs an
-  # activation script which generates a random root password with xkcdpass, sets
-  # it with chpasswd on *every activation*, and displays it on the attached
-  # screen along with the machine's addresses. So the shipped image does have a
-  # root password, this file does not control it, and anyone who can see the
-  # tabletop can read it.
+  # This once claimed there was "deliberately no password anywhere", and for the
+  # whole life of the Raspberry Pi host that was false. Its image was built
+  # through an installer profile which generated a random root password with
+  # xkcdpass, set it with chpasswd on *every activation*, and displayed it on
+  # the tabletop's screen. Nobody noticed until it turned up in a photograph.
   #
-  # hosts/rpi5.nix forces PermitRootLogin back to "prohibit-password", so that
-  # password is not a remote login. It is still a local and serial one.
-  # Removing the installer profile is Phase 1 in NEXT_STEPS.md; until that
-  # lands, do not read this block as a statement about the whole image.
+  # That profile is gone now (see flake.nix), and hosts/rpi5.nix asserts at
+  # build time that no root password, no console autologin and no Tor come
+  # back. The claim is true again — but it is worth stating carefully: this
+  # file controls the accounts *it* defines, and a profile imported elsewhere
+  # can still add one behind it. That is what the assertions are for.
   users.users.admin = {
     isNormalUser = true;
     description = "Tabletop administrator";

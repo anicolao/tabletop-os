@@ -288,7 +288,53 @@ profile in it.
    `tabletop-rpi5-installer-profile` and a note on requiring a hypothesis per
    experiment.
 
-### Phase 1 — get the installer profile out of the image
+### Phase 1 — get the installer profile out of the image — **DONE (needs hardware to confirm)**
+
+A non-installer path existed. `nixos-raspberrypi.lib.nixosInstaller` is exactly
+`nixosSystemFull` + `nixosModules.sd-image` + `modules/installer/raspberrypi-installer.nix`,
+and that last one imports nixpkgs' `profiles/installation-device.nix`. `flake.nix`
+now uses `nixosSystemFull` + `sd-image` and drops both installer layers.
+
+Verified on the evaluated config: no `root-password` activation script,
+`getty.autologinUser = null`, root has `hashedPassword`, `initialHashedPassword`
+and `password` all null, `tor.enable = false`, and the getty wrapper no longer
+passes `--autologin root`. `hidden-ssh-announce.service` is gone from the system
+rather than masked. Closure 5.17 → 4.65 GiB. The SD image builds and lands at
+`sd-image/tabletop-os-rpi5.img.zst`, which is what `scripts/burn.sh` looks for.
+
+Six of the seven `lib.mkForce` overrides in `hosts/rpi5.nix` were removable —
+firewall, PermitRootLogin, `systemd.network.enable`, `useNetworkd`, `iwd` and
+`networking.wireless.enable` all reach the right values with no override. **One
+was not, and its comment was wrong:** ZFS is not from the installer profile. It
+comes from nixos-raspberrypi's own full config, and dropping the override
+brought back twenty `zfs-*` units. Kept, with the correct attribution.
+
+Three assertions now fail the build if any of it returns, and each was checked
+by injecting the violation rather than assumed to work:
+
+```
+users.users.root.initialHashedPassword  ->  FIRED
+services.getty.autologinUser = "root"   ->  FIRED
+services.tor.enable = true              ->  FIRED
+```
+
+They assert the facts, not the absence of an import path, so a rename cannot
+slip past them.
+
+**Correction to the hypothesis this phase was partly built on:**
+`cage-tty1.service` already declares `Conflicts=getty@tty1.service`, so systemd
+was handling the VT handover and the getty was never simply stealing it. What
+changed is that tty1 now hosts a plain getty that cage conflicts away, instead
+of an autologin root session actively painting a status box onto the
+framebuffer. That weakens the "getty explains the cage restarts" idea without
+killing it — it is a Phase 2 measurement, not a claim.
+
+**Still unconfirmed on hardware:** that the board boots this image at all, that
+the kiosk still comes up, and whether `cage_restarts` changes. Deploy and
+measure before believing any of it.
+
+<details>
+<summary>Original Phase 1 plan, for reference</summary>
 
 **Hypothesis:** the image should not contain an installer profile at all. It
 brings a random root password set on every activation, an autologin root getty
@@ -317,6 +363,8 @@ no getty on tty1, and the tabletop shows the kiosk rather than a login box.
 **Watch for:** `cage_restarts` going to 0. If removing the getty fixes the cage
 restarts, that is a second real bug closed, and it means the kiosk watchdog has
 been masking a VT-ownership conflict this whole time.
+
+</details>
 
 ### Phase 2 — the hang, against the cleaned image
 
