@@ -164,6 +164,36 @@
     };
   };
 
+  # --- Recover from the boot hang without a human ----------------------------
+  #
+  # This board intermittently hangs partway through boot. The kernel simply
+  # stops emitting — no panic, no oops, no undervoltage warning at the moment of
+  # death — and the serial console goes completely dead, accepting no input, so
+  # only a physical power cycle clears it. Death times observed so far: 7s, 8s,
+  # 9.2s, 14s, 15s, 41s.
+  #
+  # The cause is not known. Every software theory tried has been disproved by
+  # evidence rather than argument: it happens on wall power as well as battery,
+  # on two different SD cards, with the radio's transmit power capped, with
+  # Bluetooth blacklisted, with all four cores pinned to minimum for the whole
+  # of boot, and with the installer profile's extra services disabled. A hard
+  # hang that is indifferent to every power reduction, at a time that varies by
+  # a factor of six, does not look like any of those.
+  #
+  # So this does not fix it. It makes it self-clearing, which is worth more
+  # here than a diagnosis: systemd is already running well before every observed
+  # death time, so it has opened /dev/watchdog and started petting it. A full
+  # lockup stops the petting, and the SoC resets itself rather than waiting for
+  # someone to walk over to the table and pull the plug.
+  #
+  # That turns "the tabletop sometimes does not come up" into "the tabletop
+  # occasionally takes an extra minute to come up" — which, for an appliance
+  # nobody logs into, is the difference that matters.
+  systemd.watchdog = {
+    runtimeTime = "30s";
+    rebootTime = "2min";
+  };
+
   # The touchscreen here is a normal USB HID device, unlike the big table's
   # RAPT panel which needs an external box to translate it. So this is the host
   # where modules/touchscreen.nix earns its keep directly.
