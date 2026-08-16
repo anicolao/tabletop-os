@@ -234,21 +234,26 @@ it comes back, but nothing currently points that way.
 
 ## 5. State to resume from
 
-**Deployed on the Pi** (generation `fx7ja8l9…`, and the board is off for the
-night): band=a + fallback profile, no regdom param, no udev `RUN+=` rule, cage
-watchdog polling fix, `systemd.settings.Manager` watchdog rename, brcmfmac
-deferral.
+**Working tree is clean.** Phase 0 is done — see §6.
 
-**Uncommitted working tree** — matches the deployed generation:
+**Unpushed commits** (7; nothing has been pushed to origin):
 
 ```
- M hosts/rpi5.nix              (+103)
- M modules/kiosk.nix            (+52)
- M modules/wifi.nix            (+252)
- M scripts/wifi-provision.sh    (+63)
+20e227f  Record what the boot hang is not, and correct a false claim about passwords
+14e046e  Stop the kiosk watchdog restarting a compositor that was about to work
+3a9d410  Use the current names for the watchdog options
+dca46cb  Fix the WiFi for real: prefer 5GHz, because 2.4GHz cannot associate
+6783c25  Let the watchdog clear the Raspberry Pi's boot hang
+fe311fb  Cut 23s from boot: win the power-save race, and stop waiting on backoff
+d4b8bb3  Fix the WiFi that never associated: disable power save
 ```
 
-**Unpushed commits:** `d4b8bb3`, `fe311fb`, `6783c25`.
+Each of the four new ones was built individually; all four evaluate clean.
+
+**The board is out of date with the repo.** It is still running generation
+`fx7ja8l9…`, which contains the brcmfmac deferral that this repo no longer has.
+First action tomorrow, once the Pi is on, is a deploy — that alone changes the
+board, so take the Phase 2 baseline *after* it, not before.
 
 **Scratch data** (session dir, will not survive indefinitely — copy anything
 worth keeping): `serial.log` (all boots, continuous), `results.tsv`,
@@ -263,19 +268,25 @@ Ordered so that the highest-value, lowest-risk work happens first, and so the
 hang investigation runs against a clean image rather than one with an installer
 profile in it.
 
-### Phase 0 — hygiene (30 min, no hardware needed)
+### Phase 0 — hygiene — **DONE**
 
-1. Revert the brcmfmac deferral in `hosts/rpi5.nix` (disproved, adds variables).
-   Keep the death-window evidence as a comment or move it here.
-2. Decide what to commit. Suggested split: (a) band preference + fallback
-   profile, (b) udev `RUN+=` removal, (c) cage watchdog polling fix, (d)
-   watchdog option rename. Each message should state what was *measured*, and
-   should not claim the hang is fixed.
-3. Correct `modules/base.nix`'s "no password anywhere" comment, which is false
-   while the installer profile is present.
-4. Update the `rpi5-boot-hangs-unsolved` memory: the six "disproved theories"
-   list is misleading, because every one of those experiments was run with the
-   udev rule in place and without continuous serial capture.
+1. ~~Revert the brcmfmac deferral.~~ Done. The blacklist entry and the
+   `tabletop-wifi-driver` unit are gone; the death-window evidence stayed as a
+   comment in `hosts/rpi5.nix` so the experiment is not repeated.
+2. ~~Commit the work.~~ Done, in four commits (§5). One deviation from the
+   suggested split: the udev `RUN+=` removal went in *with* the band commit
+   rather than separately. Its whole justification is "nothing needs it now,
+   because band=a", and both edits land in one contiguous region of
+   `modules/wifi.nix` — splitting them would have produced an intermediate
+   commit whose comments contradicted its own code.
+3. ~~Correct `modules/base.nix`.~~ Done, and expanded: the comment now says what
+   the installer profile actually does and points at Phase 1, rather than just
+   deleting the false claim.
+4. ~~Update the memory.~~ Done. `rpi5-boot-hangs-unsolved` rewritten around the
+   350ms window, with the "six disproved theories" list explicitly discredited
+   and the known-good-card experiment retracted. Added
+   `tabletop-rpi5-installer-profile` and a note on requiring a hypothesis per
+   experiment.
 
 ### Phase 1 — get the installer profile out of the image
 
