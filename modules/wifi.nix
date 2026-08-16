@@ -112,10 +112,29 @@ in
     # off it associated first try and has stayed up.
     networking.networkmanager.wifi.powersave = false;
 
-    # Cap transmit power the moment the interface appears — before the first
-    # scan, which is what the boot has to survive. KERNEL=="wl*" matches both
-    # wlan0 and the wld0 it is renamed to.
-    services.udev.extraRules = lib.mkIf (cfg.txPowerDbm != null) ''
+    # And turn it off the moment the interface appears, not just when
+    # NetworkManager activates a connection.
+    #
+    # The setting above is applied by NetworkManager during activation, which
+    # leaves the very first association running against the driver default of
+    # power save ON. That race is visible in the boot journal: with only the
+    # NetworkManager setting, a cold boot still burned four failed handshakes
+    # against the 2.4GHz radio before succeeding on the fifth attempt 66s in,
+    # while the identical association pinned to that same BSSID succeeds
+    # immediately once the system is up.
+    #
+    # Same reasoning, and the same mechanism, as the optional transmit power cap
+    # appended below: udev is the only thing that runs early enough. The two
+    # settings agree — NetworkManager's powersave=2 means "disable", so it will
+    # not turn this back on afterwards.
+    #
+    # KERNEL=="wl*" matches both wlan0 and the wld0 it is renamed to. The
+    # transmit power cap, when one is configured, has to be in force before the
+    # first scan for the same reason, so both rules live in one definition.
+    services.udev.extraRules = ''
+      SUBSYSTEM=="net", ACTION=="add", KERNEL=="wl*", RUN+="${pkgs.iw}/bin/iw dev %k set power_save off"
+    ''
+    + lib.optionalString (cfg.txPowerDbm != null) ''
       SUBSYSTEM=="net", ACTION=="add", KERNEL=="wl*", RUN+="${pkgs.iw}/bin/iw dev %k set txpower fixed ${toString (cfg.txPowerDbm * 100)}"
     '';
 
@@ -202,7 +221,14 @@ in
                   echo "wifi connected (after $((attempt - 1)) retries)"
                   exit 0
                 fi
-                nmcli connection up tabletop-wifi >/dev/null 2>&1 || true
+                # Check the result rather than sleeping through it. `nmcli
+                # connection up` blocks until the activation resolves, so when
+                # it succeeds the link is already up and the sleep below was
+                # five seconds of pure boot latency.
+                if nmcli connection up tabletop-wifi >/dev/null 2>&1; then
+                  echo "wifi connected on attempt $attempt"
+                  exit 0
+                fi
                 sleep 5
               done
               echo "wifi did not activate after 6 attempts; continuing without it" >&2

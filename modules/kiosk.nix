@@ -538,6 +538,20 @@ in
               systemd
             ];
             text = ''
+              # Kick timesyncd before waiting on it.
+              #
+              # It is ordered early in boot, so its first polls go out before
+              # there is any network to carry them, and it then backs off. The
+              # cost is not the sync — it is the backoff: this gate measured
+              # 27.3s on a boot where the network had been up since 11s.
+              # Restarting it here, with network-online.target already reached,
+              # makes its first poll the one that succeeds.
+              #
+              # try-restart, so this does nothing on a machine that uses some
+              # other time daemon, and `|| true` because a failure here should
+              # only cost accuracy, never the boot.
+              systemctl try-restart systemd-timesyncd.service || true
+
               # systemd-timesyncd creates this the moment it accepts a sample;
               # it is the same marker systemd-time-wait-sync watches.
               for i in $(seq 1 ${toString cfg.clockTimeoutSeconds}); do
