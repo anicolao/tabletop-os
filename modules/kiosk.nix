@@ -464,22 +464,48 @@ in
                 exit 0
               fi
 
-              # Twelve attempts at 15s, about three minutes.
+              # Poll for a renderer; do not sample once and judge.
               #
-              # Tuned from measurement, not taste. A healthy cold boot reaches
-              # renderers within roughly 15-20 seconds, so a 15s check risks
-              # very little; and a wedged instance never recovers on its own,
-              # so every second spent waiting on one is wasted. More attempts
-              # therefore beat longer ones: across cold boots the successes
-              # needed 0 and 5 restarts respectively, and the one failure had
-              # exhausted 8.
-              for attempt in $(seq 1 12); do
-                sleep 15
-                if kiosk_is_rendering; then
+              # The previous version slept a flat 15s and then decided. Its own
+              # comment admitted a healthy cold boot needs "roughly 15-20
+              # seconds", which means the check was landing inside the range it
+              # was trying to measure — so it restarted a cage that was about
+              # to succeed, on essentially every boot. That is exactly what the
+              # logs showed once the WiFi stall stopped hiding it: three
+              # restarts per boot at first, then a stubborn one restart per
+              # boot, roughly 17s of pure self-inflicted latency each time.
+              #
+              # Polling separates the two things the old shape confused. The
+              # grace period can now be generous enough to cover a slow-but-
+              # healthy start without costing anything when the start is quick,
+              # because a healthy boot exits the moment renderers appear rather
+              # than at the next 15s boundary.
+              grace=45          # before the first restart
+              regrace=30        # after one, when cage is starting from scratch
+
+              wait_for_renderer() {
+                waited=0
+                while [ "$waited" -lt "$1" ]; do
+                  if kiosk_is_rendering; then
+                    return 0
+                  fi
+                  sleep 1
+                  waited=$((waited + 1))
+                done
+                return 1
+              }
+
+              for attempt in $(seq 1 8); do
+                if [ "$attempt" -eq 1 ]; then
+                  window=$grace
+                else
+                  window=$regrace
+                fi
+                if wait_for_renderer "$window"; then
                   echo "kiosk is rendering (after $((attempt - 1)) restarts)"
                   exit 0
                 fi
-                echo "kiosk has no renderer; restarting cage (attempt $attempt/12)" >&2
+                echo "kiosk has no renderer after ''${window}s; restarting cage (attempt $attempt/8)" >&2
 
                 # Deliberately does NOT force a re-probe here. Poking a
                 # connector whose AUX is dead makes things worse, not better:
@@ -495,7 +521,7 @@ in
                 systemctl restart --no-block cage-tty1 || true
               done
 
-              echo "still no renderer after 12 restarts; leaving it alone" >&2
+              echo "still no renderer after 8 restarts; leaving it alone" >&2
             '';
           }
         );
