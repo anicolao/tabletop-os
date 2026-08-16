@@ -117,6 +117,17 @@
     "bluetooth"
   ];
 
+  # brcmfmac is deliberately NOT blacklisted-and-deferred here, though it was
+  # tried. That experiment is worth not repeating: the boot hang looked like it
+  # lived in brcmfmac, because six consecutive deaths ended on the same line —
+  # `brcmfmac mmc1:0001:1 wld0: renamed from wlan0` — with nothing after it.
+  # Loading the driver from a unit after the coldplug storm instead, so it was
+  # not in that window at all, did not help. The board hung twice more at 8.879s
+  # and 8.918s, now ending on the DRM framebuffer line instead.
+  #
+  # So brcmfmac was never the cause; it was whatever printed last. See
+  # NEXT_STEPS.md for where that leaves the diagnosis.
+
   # 3. Hold the CPU at its lowest frequency until the kiosk is up.
   #
   #    This is the largest single draw: four A76 cores under schedutil ramp to

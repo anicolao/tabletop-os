@@ -53,10 +53,24 @@
     };
   };
 
-  # An admin account for `ssh admin@tabletop`. There is deliberately no
-  # password anywhere in this repo; keys in ../admin-keys.nix are the only way
-  # in. An empty list there trips a NixOS assertion at build time rather than
-  # producing an image nobody can log into.
+  # An admin account for `ssh admin@tabletop`. No password is set *by this
+  # repo*; keys in ../admin-keys.nix are the only way in that we configure. An
+  # empty list there trips a NixOS assertion at build time rather than producing
+  # an image nobody can log into.
+  #
+  # This used to claim there was "deliberately no password anywhere", which was
+  # false and worth correcting rather than deleting. The Raspberry Pi image is
+  # built through nixos-images' image-installer module, and that module runs an
+  # activation script which generates a random root password with xkcdpass, sets
+  # it with chpasswd on *every activation*, and displays it on the attached
+  # screen along with the machine's addresses. So the shipped image does have a
+  # root password, this file does not control it, and anyone who can see the
+  # tabletop can read it.
+  #
+  # hosts/rpi5.nix forces PermitRootLogin back to "prohibit-password", so that
+  # password is not a remote login. It is still a local and serial one.
+  # Removing the installer profile is Phase 1 in NEXT_STEPS.md; until that
+  # lands, do not read this block as a statement about the whole image.
   users.users.admin = {
     isNormalUser = true;
     description = "Tabletop administrator";
