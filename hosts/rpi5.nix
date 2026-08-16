@@ -82,6 +82,83 @@
   networking.useNetworkd = lib.mkForce false;
   networking.wireless.iwd.enable = lib.mkForce false;
 
+  # --- Boot-time power smoothing --------------------------------------------
+  #
+  # This board runs from a battery that drove the official Raspberry Pi image
+  # for months without trouble, so the supply is not the variable — this image
+  # is. systemd coldplugs every device at once around 8.4s, while four
+  # Cortex-A76 cores are free to run at 2.4GHz and the WiFi and Bluetooth
+  # firmware loads land in the same window.
+  #
+  # Measured across six boots: "hwmon rpi_volt: Undervoltage detected!" at
+  # 10.7-11.8s on every single one, and three consecutive boots stopped logging
+  # at exactly 14s with the compositor never starting. A timeout leaves logs
+  # behind; this leaves nothing, which is what a brownout looks like.
+  #
+  # Three reductions, cheapest first.
+
+  # 1. No Tor. hidden-ssh-announce comes from the installer profile and exists
+  #    to publish an onion address during an interactive install. A kiosk has no
+  #    use for it, and starting Tor inside the brownout window is pure cost.
+  services.tor.enable = lib.mkForce false;
+  systemd.services.hidden-ssh-announce.enable = false;
+
+  # 2. No Bluetooth. Nothing here uses it, and the BCM4345C0 firmware patch runs
+  #    from 9.8s to 10.5s — immediately before the undervoltage, on the same
+  #    radio die as the WiFi that is also initialising.
+  boot.blacklistedKernelModules = [
+    "btbcm"
+    "hci_uart"
+    "bluetooth"
+  ];
+
+  # 3. Hold the CPU at its lowest frequency until the kiosk is up.
+  #
+  #    This is the largest single draw: four A76 cores under schedutil ramp to
+  #    2.4GHz to service the coldplug storm, and DVFS raises core voltage with
+  #    frequency, so the current cost is worse than linear. 1.5GHz is the lowest
+  #    this SoC offers. Boot takes slightly longer and stops browning out, which
+  #    is the trade being made deliberately.
+  #    Done with a kernel parameter rather than a service, because a service
+  #    cannot win this race: the first attempt ran at 11.47s, which is *after*
+  #    the 10.7-11.8s brownout window it was meant to protect. systemd simply
+  #    does not schedule anything of ours early enough. cpufreq applies its
+  #    default governor the moment it registers a policy, long before userspace,
+  #    so the cap is in force for the whole coldplug storm.
+  boot.kernelParams = [ "cpufreq.default_governor=powersave" ];
+
+  systemd.services.tabletop-cpu-uncap = {
+    description = "Restore full CPU frequency once the kiosk is up";
+    wantedBy = [ "graphical.target" ];
+    after = [ "cage-tty1.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = lib.getExe (
+        pkgs.writeShellApplication {
+          name = "tabletop-cpu-uncap";
+          runtimeInputs = [ pkgs.coreutils ];
+          text = ''
+            # The browser is the thing that wants the cores, and by now it has
+            # them. Hand the frequency back so the launcher is not permanently
+            # slow — powersave pins every core to the minimum, which is fine for
+            # bringing hardware up and not fine for compositing at 4K.
+            for p in /sys/devices/system/cpu/cpufreq/policy*; do
+              if [ -w "$p/scaling_governor" ]; then
+                echo schedutil > "$p/scaling_governor" || true
+              fi
+              max=$(cat "$p/cpuinfo_max_freq" 2>/dev/null || echo "")
+              if [ -n "$max" ] && [ -w "$p/scaling_max_freq" ]; then
+                echo "$max" > "$p/scaling_max_freq" || true
+              fi
+            done
+            echo "restored: governor=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null) max=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq 2>/dev/null) kHz"
+          '';
+        }
+      );
+    };
+  };
+
   # The touchscreen here is a normal USB HID device, unlike the big table's
   # RAPT panel which needs an external box to translate it. So this is the host
   # where modules/touchscreen.nix earns its keep directly.
@@ -101,5 +178,17 @@
   # Ethernet still works and takes priority if plugged in. If neither is
   # available the kiosk waits on network-online.target with no way in, since
   # SSH needs the network it does not have.
+  # HDMI presents EDID as soon as the panel is awake; it has none of the
+  # DisplayPort alt-mode negotiation the Orange Pi waits through, so the 180s
+  # default is three minutes of nothing if the screen happens to be asleep at
+  # power-on. Observed exactly that: "no usable display after 180s", with the
+  # cable connected and the monitor simply off.
+  tabletop.kiosk.displayTimeoutSeconds = 45;
+
   tabletop.wifi.enable = true;
+
+  # The radio defaults to 31 dBm, and its scan bursts at that power are what the
+  # battery cannot supply — see the option's documentation. The access point is
+  # in the same room.
+  tabletop.wifi.txPowerDbm = 15;
 }

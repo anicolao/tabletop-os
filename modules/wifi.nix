@@ -27,6 +27,32 @@ let
 in
 {
   options.tabletop.wifi = {
+    txPowerDbm = lib.mkOption {
+      type = lib.types.nullOr lib.types.int;
+      default = null;
+      example = 15;
+      description = ''
+        Cap the radio's transmit power, in dBm, or null to leave it alone.
+
+        This exists because of power, not range. On the battery-powered table
+        the radio comes up at 31 dBm — the regulatory maximum, on 5GHz with an
+        80MHz channel, which is the most expensive mode it has. Scanning at that
+        power means repeated full-power transmit bursts, and on battery the
+        supply collapses partway through: five boots died in the window between
+        systemd-rfkill idling out and wpa_supplicant associating, while boots on
+        wall power survived. The undervoltage warning does not reliably fire,
+        because rpi_volt samples on a ~2s cadence and the collapse is faster
+        than that.
+
+        15 dBm is roughly a sixtieth of the radiated power of 31 dBm and is
+        ample for an access point in the same room.
+
+        Applied from a udev rule rather than a service, because it has to be in
+        force before the first scan, and the first scan happens well before
+        anything ordered after NetworkManager could run.
+      '';
+    };
+
     enable = lib.mkEnableOption ''
       reading WiFi credentials from the SD card's FAT partition at boot.
 
@@ -47,6 +73,44 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Cap transmit power the moment the interface appears — before the first
+    # scan, which is what the boot has to survive. KERNEL=="wl*" matches both
+    # wlan0 and the wld0 it is renamed to.
+    services.udev.extraRules = lib.mkIf (cfg.txPowerDbm != null) ''
+      SUBSYSTEM=="net", ACTION=="add", KERNEL=="wl*", RUN+="${pkgs.iw}/bin/iw dev %k set txpower fixed ${toString (cfg.txPowerDbm * 100)}"
+    '';
+
+    # Re-assert it after association. Associating triggers a regulatory-domain
+    # change (CTRL-EVENT-REGDOM-CHANGE ... alpha2=CA in the logs), and a regdom
+    # change re-evaluates the power limit, which can undo the cap set above.
+    # The udev rule protects the scan; this protects everything after it.
+    systemd.services.tabletop-wifi-txpower = lib.mkIf (cfg.txPowerDbm != null) {
+      description = "Re-apply the WiFi transmit power cap after association";
+      after = [ "NetworkManager.service" ];
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = lib.getExe (
+          pkgs.writeShellApplication {
+            name = "tabletop-wifi-txpower";
+            runtimeInputs = with pkgs; [
+              iw
+              coreutils
+            ];
+            text = ''
+              for dev in /sys/class/net/wl*; do
+                [ -e "$dev" ] || continue
+                name=$(basename "$dev")
+                iw dev "$name" set txpower fixed ${toString (cfg.txPowerDbm * 100)} || true
+                echo "$name txpower -> ${toString cfg.txPowerDbm} dBm"
+              done
+            '';
+          }
+        );
+      };
+    };
+
     systemd.services.tabletop-wifi-provision = {
       description = "Provision WiFi credentials from the SD card";
       # Before NetworkManager, so the profile exists the first time it looks,
