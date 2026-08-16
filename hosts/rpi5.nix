@@ -222,6 +222,42 @@
 
   tabletop.wifi.enable = true;
 
+  # Regulatory domain deliberately left unset, though this table is in Canada
+  # and the option exists.
+  #
+  # Pinning it to CA was tried and measured. On its own it did help — handshake
+  # failures 3 -> 2, association 55.7s -> 38.0s — but the band preference below
+  # subsumes all of it: with band=a the rejected-channel spam it was meant to
+  # cure went to zero on its own, because the scan no longer visits 2.4GHz at
+  # all. So it buys nothing here.
+  #
+  # And it is not free. Setting it pulls wireless-regdb in and makes the kernel
+  # load and verify the signed regulatory database during early boot, landing
+  # at t=8.6s — roughly 400ms before the point where this board's intermittent
+  # boot hang strikes. Three consecutive hangs were captured with it enabled,
+  # all at t=8.98s, 9.09s and 9.14s and all on the same line:
+  #
+  #   brcmfmac mmc1:0001:1 wld0: renamed from wlan0
+  #
+  # That is not proof it is the cause — the hang predates this option and two
+  # boots with it enabled came up fine — but it is a change with no remaining
+  # benefit sitting on top of the one unexplained fault in this image, and that
+  # is a bad trade. If the domain is ever needed, set it and re-measure the
+  # hang rate deliberately rather than as a side effect.
+  # tabletop.wifi.regulatoryDomain = "CA";
+
+  # Prefer 5GHz. On this board 2.4GHz fails the WPA2 four-way handshake during
+  # boot while 5GHz associates first try, and since 2.4GHz is the stronger
+  # signal here it is what the supplicant reaches for unless told otherwise —
+  # so every boot spent 30-55s failing before falling through to the band that
+  # works. modules/wifi.nix has the per-BSSID evidence.
+  #
+  # Not a lockout: provisioning also writes an unrestricted profile at a lower
+  # autoconnect priority, so a table carried somewhere with only 2.4GHz still
+  # comes up. It is the *order* that was costing the boot, not the existence of
+  # the other band.
+  tabletop.wifi.band = "a";
+
   # No txPowerDbm cap here, deliberately. It was set to 15 dBm on the theory
   # that full-power scan bursts were browning out the battery, and that theory
   # did not survive: failed boots happened on wall power too, and the board has

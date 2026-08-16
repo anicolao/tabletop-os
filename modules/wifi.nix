@@ -21,6 +21,7 @@ let
     text = ''
       TABLETOP_WIFI_FILE=${lib.escapeShellArg cfg.credentialsFile}
       TABLETOP_NM_DIR=/etc/NetworkManager/system-connections
+      TABLETOP_WIFI_BAND=${lib.escapeShellArg (if cfg.band == null then "" else cfg.band)}
     ''
     + builtins.readFile ../scripts/wifi-provision.sh;
   };
@@ -52,9 +53,11 @@ in
         observed on this hardware was the access point failing to hear us. See
         the power-save note in this module's config block.
 
-        Applied from a udev rule rather than a service, because it has to be in
-        force before the first scan, and the first scan happens well before
-        anything ordered after NetworkManager could run.
+        Applied from a systemd unit ordered after NetworkManager, so it takes
+        effect from the first association onward rather than at interface
+        creation. It used to run from a udev RUN+= rule, to get in before the
+        first scan. Do not put it back there: that is what was hanging the
+        board mid-boot, for the reasons written up in the config block.
       '';
     };
 
@@ -64,6 +67,53 @@ in
       Intended for the Raspberry Pi hosts, which have onboard wireless. The
       Orange Pi 5 Plus does not, so this stays off there
     '';
+
+    band = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum [ "a" "bg" ]);
+      default = null;
+      example = "a";
+      description = ''
+        Restrict the WiFi profile to one band — "a" for 5GHz, "bg" for 2.4GHz —
+        or null to let the supplicant choose.
+
+        This exists because on the Raspberry Pi 5 the choice is not free. See
+        the config block for the measurements: the 2.4GHz radio here fails the
+        WPA2 four-way handshake, the 5GHz radio does not, and because 2.4GHz is
+        the stronger signal it is the one the supplicant tries first every time.
+
+        A second, unrestricted profile is provisioned alongside the restricted
+        one at a lower autoconnect priority, so a table carried out of range of
+        the preferred band still gets a link. The restriction is a preference
+        with teeth, not a lockout.
+      '';
+    };
+
+    regulatoryDomain = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "CA";
+      description = ''
+        ISO 3166-1 alpha-2 country code to pin the radio's regulatory domain
+        to, or null to leave the kernel at its default.
+
+        Leaving it at the default is not neutral. The kernel boots into domain
+        `00` — "world" — and the radio then learns the real domain from the
+        access point's country information element *during association*, then
+        reverts to world when the attempt ends. Setting this cuts the scan work
+        and stops the kernel asking the firmware for channels it will refuse.
+
+        It does not stop the flapping, which is what it was originally added to
+        do. `cfg80211.ieee80211_regdom=` registers as a *user* hint rather than
+        the core default, so the revert to world still happens and a USER hint
+        restoring the country follows it. Nor does it fix association — that
+        was the band, see `band` above. Measured on this hardware it was worth
+        one handshake failure and ~18s of boot on its own, and nothing at all
+        once the band preference was in place.
+
+        Left here because it is cheap and correct, not because anything now
+        depends on it. hosts/rpi5.nix explains why that host leaves it unset.
+      '';
+    };
 
     credentialsFile = lib.mkOption {
       type = lib.types.str;
@@ -78,10 +128,11 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # Power save off. This is not a tuning preference — it is the fix for a
-    # WiFi that never once associated.
+    # Power save off. Worth having, and — despite what this comment used to
+    # say — not the fix. The band preference below is. Read this block as the
+    # record of a real contributing factor, not of a solved case.
     #
-    # brcmfmac defaults to power save on, and on this board that breaks the WPA2
+    # brcmfmac defaults to power save on, and on this board that hurts the WPA2
     # four-way handshake in one specific direction. Traced with wpa_supplicant
     # at DebugLevel=debug:
     #
@@ -108,35 +159,149 @@ in
     #   - Raising transmit power does not help. The link is strong in both
     #     directions; the frame is not weak, it is asleep.
     #
-    # 14 boots, 18 handshake failures, zero successful associations. With this
-    # off it associated first try and has stayed up.
+    # 14 boots, 18 handshake failures, zero successful associations.
+    #
+    # This is necessary but not sufficient, and an earlier version of this
+    # comment claimed more than the evidence supported. Turning power save off
+    # produced one clean cold boot, which was a lucky sample: a later boot with
+    # the udev rule below confirmed active still failed three handshakes. The
+    # regulatory-domain pin further down is the other half.
     networking.networkmanager.wifi.powersave = false;
 
-    # And turn it off the moment the interface appears, not just when
-    # NetworkManager activates a connection.
+    # NO udev RUN+= rule here, and this is the important part of this file.
     #
-    # The setting above is applied by NetworkManager during activation, which
-    # leaves the very first association running against the driver default of
-    # power save ON. That race is visible in the boot journal: with only the
-    # NetworkManager setting, a cold boot still burned four failed handshakes
-    # against the 2.4GHz radio before succeeding on the fifth attempt 66s in,
-    # while the identical association pinned to that same BSSID succeeds
-    # immediately once the system is up.
+    # There used to be one — `RUN+="iw dev %k set power_save off"` on the net
+    # `add` event, with the transmit power cap using the same mechanism before
+    # it. The argument for it was sound: udev is the only thing that runs early
+    # enough to beat the first association. It is also, on this hardware, what
+    # hangs the board.
     #
-    # Same reasoning, and the same mechanism, as the optional transmit power cap
-    # appended below: udev is the only thing that runs early enough. The two
-    # settings agree — NetworkManager's powersave=2 means "disable", so it will
-    # not turn this back on afterwards.
+    # The boot hang that cost an entire night of bisecting every power-related
+    # setting in this repository first appears the same evening `iw`-from-udev
+    # was introduced, and once the serial console was capturing continuously it
+    # turned out not to be random at all. Four consecutive hangs, last line
+    # identical every time:
     #
-    # KERNEL=="wl*" matches both wlan0 and the wld0 it is renamed to. The
-    # transmit power cap, when one is configured, has to be in force before the
-    # first scan for the same reason, so both rules live in one definition.
-    services.udev.extraRules = ''
-      SUBSYSTEM=="net", ACTION=="add", KERNEL=="wl*", RUN+="${pkgs.iw}/bin/iw dev %k set power_save off"
-    ''
-    + lib.optionalString (cfg.txPowerDbm != null) ''
-      SUBSYSTEM=="net", ACTION=="add", KERNEL=="wl*", RUN+="${pkgs.iw}/bin/iw dev %k set txpower fixed ${toString (cfg.txPowerDbm * 100)}"
-    '';
+    #   [    8.978] brcmfmac mmc1:0001:1 wld0: renamed from wlan0
+    #   [    9.087] brcmfmac mmc1:0001:1 wld0: renamed from wlan0
+    #   [    9.096] brcmfmac mmc1:0001:1 wld0: renamed from wlan0
+    #   [    9.143] brcmfmac mmc1:0001:1 wld0: renamed from wlan0
+    #
+    # Then nothing — no panic, no oops, dead serial. That line is the rename
+    # this rule keys on, so what died is the udev worker's RUN program calling
+    # into nl80211 on a brcmfmac interface that is still coming up on SDIO,
+    # while udev holds the device and `iw` takes rtnl_lock.
+    #
+    # This also explains why every theory in the previous diagnosis survived
+    # testing. Capping transmit power, uncapping it, blacklisting Bluetooth,
+    # pinning the governor — all of them left the rule in place, and the one
+    # experiment that looked like it exonerated the radio (capping TX power)
+    # was in fact *adding* a second RUN of the same kind.
+    #
+    # None of it is needed any more. The first association no longer races
+    # anything, because tabletop.wifi.band keeps it off the radio that was
+    # failing; NetworkManager's powersave=false above covers every association
+    # from activation onward. If something ever genuinely must touch the
+    # interface at creation time, do it from a systemd unit pulled in by
+    # SYSTEMD_WANTS — not from RUN+=, which runs inside the udev worker and
+    # takes the whole board down with it when it blocks.
+
+    # What actually breaks association here: the 2.4GHz radio.
+    #
+    # This is the third diagnosis of this bug and the first one with a control.
+    # Power save (below) and the regulatory domain (further down) were both real
+    # findings that each removed a failure or two, and neither fixed it: a boot
+    # with both in place still burned two handshake timeouts. What finally shows
+    # the mechanism is looking at *which* access point each attempt used.
+    #
+    #   Associated with e0:63:da:7d:45:54  ->  reason=15, handshake failed
+    #   Associated with e0:63:da:7d:45:54  ->  reason=15, handshake failed
+    #   Associated with e0:63:da:7d:45:54  ->  connected, then reason=15
+    #   Associated with e0:63:da:7e:45:54  ->  connected, stayed up
+    #
+    # And the previous boot: three failures on ...7d:45:54, then success on
+    # ...7e:44:23 — a different physical access point, same story. Every failure
+    # is on a 7d BSSID and every success is on a 7e one. `nmcli device wifi
+    # list` says what those are:
+    #
+    #   E0:63:DA:7D:45:54   chan 1     2412 MHz   signal 74
+    #   E0:63:DA:7E:45:54   chan 149   5745 MHz   signal 61
+    #
+    # So 7d is 2.4GHz and 7e is 5GHz, and the failure is band-specific across
+    # two different access points — which rules out one sick AP. It also
+    # explains why this looked random for so long: 2.4GHz is the *stronger*
+    # signal, so the supplicant ranks it first and tries it first on every
+    # single boot. The link was never intermittent. It failed deterministically,
+    # then fell through to 5GHz and worked, and how long that took depended only
+    # on how many attempts the retry loop needed.
+    #
+    # That also retires the last claim of the power-save commit, that the
+    # identical association "succeeds immediately once the system is up". It
+    # does — on 2.4GHz too. Whatever the interference is, it is present during
+    # boot and gone afterwards, which is consistent with the panel: this host
+    # drives HDMI at 2560x1440@70Hz, and pixel clocks in that range are a
+    # well-known source of 2.4GHz noise on Raspberry Pi hardware. Not proven,
+    # and not needed to act — preferring the band that works is right either way.
+    #
+    # The band preference itself is set per host, because it is a fact about a
+    # radio and a room rather than about this module. See hosts/rpi5.nix.
+
+    # Pin the regulatory domain, so the radio is never renegotiating one during
+    # a handshake.
+    #
+    # This one is worth keeping but it is not the fix, and the first version of
+    # this comment overstated it. Pinning CA did measurably help — handshake
+    # failures 3 -> 2, association 55.7s -> 38.0s, and channel 14 stopped being
+    # scanned — but the flapping it was meant to stop does not stop, because
+    # `cfg80211.ieee80211_regdom=` is applied as a *user* hint rather than as
+    # the core default. The journal still shows the revert:
+    #
+    #   CTRL-EVENT-REGDOM-CHANGE init=CORE type=WORLD
+    #   CTRL-EVENT-REGDOM-CHANGE init=USER type=COUNTRY alpha2=CA
+    #
+    # Keep it anyway: it is correct for where this table lives, it cuts the
+    # scan work, and the residual `set chanspec ... reason -52` lines are the
+    # firmware's own country list disagreeing with cfg80211 about channels 12
+    # and 13 and the 5GHz DFS band — noisy, but harmless, and not on the path
+    # of anything that now matters.
+    #
+    # Turning power save off is necessary but it is not sufficient: a cold boot
+    # with the udev rule above confirmed active — `power save disabled` logged
+    # three seconds after the interface appeared — still burned three four-way
+    # handshake timeouts and took 56s to associate. So there is a second cause,
+    # and the journal names it. Every attempt looks like this:
+    #
+    #   02:25:40  Associated with e0:63:da:7d:45:54
+    #   02:25:40  CTRL-EVENT-REGDOM-CHANGE init=COUNTRY_IE type=COUNTRY alpha2=CA
+    #   02:25:44  CTRL-EVENT-DISCONNECTED reason=15
+    #   02:25:44  WPA: 4-Way Handshake failed
+    #   02:25:44  CTRL-EVENT-REGDOM-CHANGE init=CORE type=WORLD
+    #
+    # The board boots in domain 00 and learns CA from the access point's country
+    # IE at the moment it associates, then reverts to WORLD when the attempt
+    # fails — flapping once per retry. A regdom change re-evaluates channel and
+    # power limits, which is why the note below had to re-assert the transmit
+    # power cap after association for the same reason; here it lands in the
+    # middle of the handshake instead. The re-assert of power save is visible
+    # arriving at 02:25:45, one second *after* the handshake it was meant to
+    # protect had already timed out.
+    #
+    # The same flapping explains the `brcmf_set_channel: set chanspec ... fail,
+    # reason -52` spam, which appears only inside the retry window and nowhere
+    # else. Decoded, the rejected channels are 12, 13 and 14 on 2.4GHz and 34,
+    # 38, 42, 46, 120, 124 and 128 on 5GHz: what a world-domain scan asks for
+    # and CA firmware refuses.
+    #
+    # On the kernel command line rather than `iw reg set` deliberately — see the
+    # option's description. This sets the domain the kernel *reverts* to, which
+    # a user hint does not.
+    boot.kernelParams = lib.mkIf (
+      cfg.regulatoryDomain != null
+    ) [ "cfg80211.ieee80211_regdom=${cfg.regulatoryDomain}" ];
+
+    # Without the database the domain above is a name the kernel cannot resolve,
+    # and it silently stays at 00.
+    hardware.wirelessRegulatoryDatabase = lib.mkIf (cfg.regulatoryDomain != null) true;
 
     # Re-assert it after association. Associating triggers a regulatory-domain
     # change (CTRL-EVENT-REGDOM-CHANGE ... alpha2=CA in the logs), and a regdom
@@ -211,13 +376,26 @@ in
               # is already up, so it returns immediately.
               nmcli connection reload >/dev/null 2>&1 || true
 
-              if ! nmcli -t -f NAME connection show 2>/dev/null | grep -qx tabletop-wifi; then
+              # In profile order: the band-restricted profile first, then the
+              # unrestricted fallback if provisioning wrote one. Autoconnect
+              # priority already expresses this preference to NetworkManager,
+              # but this unit activates by name, so it has to know the order
+              # too — otherwise a table somewhere with no 5GHz would sit here
+              # retrying a profile that cannot match anything in range.
+              profiles=""
+              for p in tabletop-wifi tabletop-wifi-any; do
+                if nmcli -t -f NAME connection show 2>/dev/null | grep -qx "$p"; then
+                  profiles="$profiles $p"
+                fi
+              done
+              if [ -z "$profiles" ]; then
                 echo "no tabletop-wifi profile; nothing to activate"
                 exit 0
               fi
+
               for attempt in 1 2 3 4 5 6; do
                 if nmcli -t -f DEVICE,STATE,CONNECTION device status 2>/dev/null \
-                     | grep -q "^wl.*:connected:tabletop-wifi$"; then
+                     | grep -qE "^wl.*:connected:tabletop-wifi(-any)?$"; then
                   echo "wifi connected (after $((attempt - 1)) retries)"
                   exit 0
                 fi
@@ -225,10 +403,12 @@ in
                 # connection up` blocks until the activation resolves, so when
                 # it succeeds the link is already up and the sleep below was
                 # five seconds of pure boot latency.
-                if nmcli connection up tabletop-wifi >/dev/null 2>&1; then
-                  echo "wifi connected on attempt $attempt"
-                  exit 0
-                fi
+                for p in $profiles; do
+                  if nmcli connection up "$p" >/dev/null 2>&1; then
+                    echo "wifi connected on attempt $attempt via $p"
+                    exit 0
+                  fi
+                done
                 sleep 5
               done
               echo "wifi did not activate after 6 attempts; continuing without it" >&2

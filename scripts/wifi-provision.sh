@@ -62,7 +62,6 @@ case "$ssid$psk" in
   *"$newline"*) echo "error: ssid/psk contain a newline; refusing" >&2; exit 1 ;;
 esac
 
-out="$TABLETOP_NM_DIR/tabletop-wifi.nmconnection"
 mkdir -p "$TABLETOP_NM_DIR"
 
 # Written with a restrictive umask *before* the content exists, so the
@@ -70,26 +69,46 @@ mkdir -p "$TABLETOP_NM_DIR"
 # keyfiles that are group- or world-accessible, so this is also required.
 umask 077
 
-{
-  printf '[connection]\n'
-  printf 'id=tabletop-wifi\n'
-  printf 'type=wifi\n'
-  printf 'autoconnect=true\n'
-  printf 'autoconnect-priority=10\n'
-  printf '\n[wifi]\n'
-  printf 'mode=infrastructure\n'
-  printf 'ssid=%s\n' "$ssid"
-  [ "$hidden" = "true" ] && printf 'hidden=true\n'
-  if [ -n "$psk" ]; then
-    printf '\n[wifi-security]\n'
-    printf 'key-mgmt=wpa-psk\n'
-    printf 'psk=%s\n' "$psk"
-  fi
-  printf '\n[ipv4]\nmethod=auto\n'
-  printf '\n[ipv6]\nmethod=auto\n'
-} > "$out.tmp"
+# $1 profile id, $2 autoconnect priority, $3 band ("" for any).
+write_profile() {
+  out="$TABLETOP_NM_DIR/$1.nmconnection"
+  {
+    printf '[connection]\n'
+    printf 'id=%s\n' "$1"
+    printf 'type=wifi\n'
+    printf 'autoconnect=true\n'
+    printf 'autoconnect-priority=%s\n' "$2"
+    printf '\n[wifi]\n'
+    printf 'mode=infrastructure\n'
+    printf 'ssid=%s\n' "$ssid"
+    [ -n "$3" ] && printf 'band=%s\n' "$3"
+    [ "$hidden" = "true" ] && printf 'hidden=true\n'
+    if [ -n "$psk" ]; then
+      printf '\n[wifi-security]\n'
+      printf 'key-mgmt=wpa-psk\n'
+      printf 'psk=%s\n' "$psk"
+    fi
+    printf '\n[ipv4]\nmethod=auto\n'
+    printf '\n[ipv6]\nmethod=auto\n'
+  } > "$out.tmp"
 
-chmod 600 "$out.tmp"
-mv -f "$out.tmp" "$out"
+  chmod 600 "$out.tmp"
+  mv -f "$out.tmp" "$out"
+}
 
-echo "provisioned WiFi for SSID '$ssid'"
+fallback="$TABLETOP_NM_DIR/tabletop-wifi-any.nmconnection"
+
+if [ -n "${TABLETOP_WIFI_BAND:-}" ]; then
+  # Restricted profile wins on priority; the unrestricted one exists so a table
+  # carried somewhere with only the other band still comes up. See
+  # modules/wifi.nix for why the restriction is there at all.
+  write_profile tabletop-wifi 10 "$TABLETOP_WIFI_BAND"
+  write_profile tabletop-wifi-any 1 ""
+  echo "provisioned WiFi for SSID '$ssid' (band $TABLETOP_WIFI_BAND, with any-band fallback)"
+else
+  write_profile tabletop-wifi 10 ""
+  # Do not leave a stale fallback behind if the restriction is ever removed;
+  # it would keep its credentials and keep autoconnecting.
+  rm -f "$fallback"
+  echo "provisioned WiFi for SSID '$ssid'"
+fi
