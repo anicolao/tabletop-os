@@ -100,29 +100,19 @@
   #    Pi 5's Bluetooth hangs off SDIO, so btsdio is what pulls the stack in.
   #    Blacklisting the other three alone left "bluetooth 966656 1 btsdio" in
   #    lsmod — the reduction had simply not happened.
-  # --- EXPERIMENT: the one-line kernel fix ----------------------------------
+  # No boot.kernelPatches here, and the repo's rule against them stands.
   #
-  # vc4_hdmi_handle_hotplug() in this vendor tree calls
-  # drm_atomic_helper_connector_hdmi_hotplug() TWICE with identical arguments,
-  # separated only by a comment. Upstream calls it once. Each call does a full
-  # EDID read over DDC I2C plus a CEC physical-address update, on a path whose
-  # own comment says it runs without vc4_hdmi->mutex because taking the lock
-  # deadlocks against CEC. Our hang signature is exactly two hotplug events,
-  # dying in drm_connector_helper_hpd_irq_event right after an EDID re-read,
-  # 10 times out of 10.
+  # One was tried: patches/vc4-hdmi-single-hotplug.patch, removing a genuine
+  # divergence from upstream where vc4_hdmi_handle_hotplug() calls
+  # drm_atomic_helper_connector_hdmi_hotplug() twice. It cost a 41-minute
+  # from-source aarch64 build and fixed nothing — 25 boots, 10 hangs, 40%, with
+  # the hang signature completely unchanged. Verified the patched kernel really
+  # booted (/run/booted-system/kernel matched the patched store path) before
+  # accepting that result.
   #
-  # NOTE THE REPO'S OWN RULE: "never use boot.kernelPatches on these targets —
-  # it forces a from-source aarch64 kernel build". That rule was learned on a
-  # 1-core/3GiB linux-builder which could not finish one. The builder is now
-  # 8-core/48GiB, and this is the only way to test the hypothesis at all, so it
-  # is a considered exception rather than an oversight. If this does not pan
-  # out, remove it — do not let a kernel build become a standing cost.
-  boot.kernelPatches = [
-    {
-      name = "vc4-hdmi-single-hotplug";
-      patch = ../patches/vc4-hdmi-single-hotplug.patch;
-    }
-  ];
+  # The patch is kept in patches/ because the divergence is real and worth
+  # reporting upstream. It is not applied here, because a 41-minute rebuild is a
+  # steep standing cost for no measured benefit. See docs/VC4-BOOT-HANG.md.
 
   boot.blacklistedKernelModules = [
     "btsdio"
