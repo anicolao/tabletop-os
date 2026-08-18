@@ -1,0 +1,39 @@
+drm/vc4: hdmi: drop the duplicated hotplug helper call
+
+vc4_hdmi_handle_hotplug() calls drm_atomic_helper_connector_hdmi_hotplug()
+twice, with identical arguments, separated only by a comment block. Upstream
+(torvalds/linux master) calls it exactly once.
+
+The shape is a rebase artifact: the helper call was added above the pre-existing
+CEC block when the driver moved onto the generic HDMI helpers, and the older
+call below the comment was never removed. The legacy cec_s_phys_addr() /
+cec_phys_addr_invalidate() handling survives alongside the helper, which already
+does CEC itself via drm_connector_cec_phys_addr_set().
+
+Each call runs drm_atomic_helper_connector_hdmi_update(), which performs a full
+EDID read over the DDC I2C controller and a CEC physical-address update. So
+every hotplug does that work twice back to back, on a path the comment itself
+states runs WITHOUT vc4_hdmi->mutex because taking the lock deadlocks against
+CEC.
+
+On a Raspberry Pi 5 (BCM2712, vendor kernel 6.18.34) this correlates with a hard
+board lockup during vc4 bring-up: 40-57% of cold boots stop dead with no panic
+and no oops, all cores gone, recovered only by the hardware watchdog. With
+drm.debug=0x06 on the serial console, 10 of 10 hangs die inside
+drm_connector_helper_hpd_irq_event immediately after an EDID re-read, and every
+hung boot shows exactly two drm_client_hotplug events where healthy boots show
+zero or one.
+
+Removing the duplicate restores upstream behaviour.
+
+--- a/drivers/gpu/drm/vc4/vc4_hdmi.c
++++ b/drivers/gpu/drm/vc4/vc4_hdmi.c
+@@ -384,8 +384,6 @@
+ 	 * any state with any of the other frameworks so we can ignore
+ 	 * the lock for now.
+ 	 */
+-
+-	drm_atomic_helper_connector_hdmi_hotplug(connector, status);
+ 
+ 	if (status == connector_status_disconnected) {
+ 		cec_phys_addr_invalidate(vc4_hdmi->cec_adap);

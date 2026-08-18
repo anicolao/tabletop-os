@@ -100,6 +100,30 @@
   #    Pi 5's Bluetooth hangs off SDIO, so btsdio is what pulls the stack in.
   #    Blacklisting the other three alone left "bluetooth 966656 1 btsdio" in
   #    lsmod — the reduction had simply not happened.
+  # --- EXPERIMENT: the one-line kernel fix ----------------------------------
+  #
+  # vc4_hdmi_handle_hotplug() in this vendor tree calls
+  # drm_atomic_helper_connector_hdmi_hotplug() TWICE with identical arguments,
+  # separated only by a comment. Upstream calls it once. Each call does a full
+  # EDID read over DDC I2C plus a CEC physical-address update, on a path whose
+  # own comment says it runs without vc4_hdmi->mutex because taking the lock
+  # deadlocks against CEC. Our hang signature is exactly two hotplug events,
+  # dying in drm_connector_helper_hpd_irq_event right after an EDID re-read,
+  # 10 times out of 10.
+  #
+  # NOTE THE REPO'S OWN RULE: "never use boot.kernelPatches on these targets —
+  # it forces a from-source aarch64 kernel build". That rule was learned on a
+  # 1-core/3GiB linux-builder which could not finish one. The builder is now
+  # 8-core/48GiB, and this is the only way to test the hypothesis at all, so it
+  # is a considered exception rather than an oversight. If this does not pan
+  # out, remove it — do not let a kernel build become a standing cost.
+  boot.kernelPatches = [
+    {
+      name = "vc4-hdmi-single-hotplug";
+      patch = ../patches/vc4-hdmi-single-hotplug.patch;
+    }
+  ];
+
   boot.blacklistedKernelModules = [
     "btsdio"
     "btbcm"
@@ -202,28 +226,18 @@
     # slows boot and changes timing, and it applies to every DRM driver rather
     # than only vc4. If the hang rate collapses under it, the debug output is
     # itself perturbing the race; narrow the mask before believing the result.
-    # Take the fbdev client out, since it is the thing the evidence implicates.
+    # vc4.force_hotplug=1 was tried here and removed. It is not a fix, and
+    # leaving it in would confound the kernel-patch test below by suppressing
+    # hotplug events on its own: 23 boots, 8 hangs (35%), and every surviving
+    # boot got ZERO hotplug events where healthy boots normally see one. It
+    # overrides the status check inside detect_ctx(); it does not stop the
+    # interrupt that calls it, so when a real HPD lands the doubled EDID read
+    # runs and the board dies anyway.
     #
-    # Nine hangs now share a byte-identical signature — 2 drm_client_hotplug
-    # calls, 32 vc4_atomic_check, 20 vc4_hvs_atomic_check, 0
-    # vc4_crtc_atomic_disable — against 0 of 14 healthy boots reaching two
-    # hotplugs.
-    #
-    # drm_kms_helper.poll=0 was tried first, on the theory that the periodic
-    # connector poll produced that second hotplug. It does not: with poll=N
-    # confirmed live in sysfs, four hangs still reached exactly 2 hotplugs and
-    # the same signature. So the event comes from a real HPD interrupt or from
-    # vc4's own drm_kms_helper_hotplug_event(), not from the poll timer. That
-    # theory is dead; the correlation survived it.
-    #
-    # drm_client_hotplug IS the fbdev client's handler. Removing the client
-    # means the handler cannot run whatever generates the event, which targets
-    # the implicated step rather than one guess at its trigger.
-    #
-    # Cost: no kernel framebuffer console on HDMI. cage talks DRM directly and
-    # does not need fbdev, so the kiosk should be unaffected — but that is a
-    # prediction to verify, not an assumption.
-    "drm_kms_helper.fbdev_emulation=0"
+    # Same failure mode as drm_kms_helper.poll=0 and fbdev_emulation=0: all
+    # three removed a *route* to the handler — the timer, one client, the
+    # status check — and none removed the doubled work inside it. That is why
+    # the fix has to be in the handler.
 
     "drm.debug=0x06"
 
