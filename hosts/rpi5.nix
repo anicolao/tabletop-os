@@ -105,6 +105,34 @@
     "btbcm"
     "hci_uart"
     "bluetooth"
+
+    # --- EXPERIMENT, not a setting. Remove once it has answered. --------------
+    #
+    # Unplugging HDMI did not stop the boot hang: 25 headless boots hung 40% of
+    # the time, inside the 23-57% band measured with a display attached, and no
+    # framebuffer was created in a single one of them. So display *output* is
+    # not the trigger.
+    #
+    # But the driver is not the output. Even headless, vc4 binds every one of
+    # its components and v3d initialises, and that work straddles the entire
+    # death window — vc4 starts binding at 3.9s and is still at it at 8.4s,
+    # while every recorded death falls between 8.4s and 9.0s. Unplugging a cable
+    # removes the panel; it does not remove any of that.
+    #
+    # So this removes the drivers instead. Both are modules (CONFIG_DRM_VC4=m,
+    # CONFIG_DRM_V3D=m), so a blacklist is enough — no kernel rebuild.
+    #
+    # Blacklisting both together on purpose, to maximise the signal on the first
+    # pass. If the hangs stop, split them and find out which. If they do not,
+    # the entire DRM/GPU stack is exonerated and the search moves to what else
+    # is live in that window: firmware mailbox calls, clocks, power domains, or
+    # SDIO.
+    #
+    # Cost while this is in place: no display at all, so the kiosk cannot start
+    # and tabletop-wait-display will time out on every boot. That is expected
+    # and does not affect the measurement, which only counts kernel starts.
+    "vc4"
+    "v3d"
   ];
 
   # brcmfmac is deliberately NOT blacklisted-and-deferred here, though it was
