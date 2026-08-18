@@ -105,42 +105,6 @@
     "btbcm"
     "hci_uart"
     "bluetooth"
-
-    # --- EXPERIMENT, not a setting. Remove once it has answered. --------------
-    #
-    # Unplugging HDMI did not stop the boot hang: 25 headless boots hung 40% of
-    # the time, inside the 23-57% band measured with a display attached, and no
-    # framebuffer was created in a single one of them. So display *output* is
-    # not the trigger.
-    #
-    # But the driver is not the output. Even headless, vc4 binds every one of
-    # its components and v3d initialises, and that work straddles the entire
-    # death window — vc4 starts binding at 3.9s and is still at it at 8.4s,
-    # while every recorded death falls between 8.4s and 9.0s. Unplugging a cable
-    # removes the panel; it does not remove any of that.
-    #
-    # So this removes the drivers instead. Both are modules (CONFIG_DRM_VC4=m,
-    # CONFIG_DRM_V3D=m), so a blacklist is enough — no kernel rebuild.
-    #
-    # Blacklisting both together on purpose, to maximise the signal on the first
-    # pass. If the hangs stop, split them and find out which. If they do not,
-    # the entire DRM/GPU stack is exonerated and the search moves to what else
-    # is live in that window: firmware mailbox calls, clocks, power domains, or
-    # SDIO.
-    #
-    # Cost while this is in place: no display at all, so the kiosk cannot start
-    # and tabletop-wait-display will time out on every boot. That is expected
-    # and does not affect the measurement, which only counts kernel starts.
-    # SPLIT, pass 2 of 2: vc4 out, v3d IN.
-    #
-    # Pass 1 loaded vc4 with v3d out: 7 boots, 2 hangs, 29%. So vc4 alone
-    # reproduces the fault and v3d is not required.
-    #
-    # This is the complement, and it is not a formality. If v3d alone ALSO hangs,
-    # the conclusion is not "vc4 is buggy" but "any DRM driver bring-up in this
-    # window is fatal" — a different bug with a different fix. Only this pass
-    # separates those two.
-    "vc4"
   ];
 
   # brcmfmac is deliberately NOT blacklisted-and-deferred here, though it was
@@ -167,6 +131,19 @@
   #    does not schedule anything of ours early enough. cpufreq applies its
   #    default governor the moment it registers a policy, long before userspace,
   #    so the cap is in force for the whole coldplug storm.
+  # 8, not the default 7, and the experiment above is useless without it.
+  # drm_dbg() prints at KERN_DEBUG (7), and printk reaches the console only when
+  # level < console_loglevel — so at 7 every debug line goes to journald and
+  # none goes to serial. The journal cannot help with this fault: the board dies
+  # before it is flushed, and serial is the only channel that survives a hang.
+  # Caught by reading the serial capture of a real hang and finding no
+  # timestamped [drm:...] lines in it at all.
+  #
+  # Set through this option rather than a kernel parameter because NixOS appends
+  # its own loglevel= after boot.kernelParams, and the last one on the command
+  # line wins.
+  boot.consoleLogLevel = 8;
+
   boot.kernelParams = [
     "cpufreq.default_governor=powersave"
 
@@ -204,6 +181,29 @@
     # That mattered. At 120s the detector would have fired long after the
     # hardware watchdog resets the board at ~85s, so the experiment would have
     # produced a confident-looking null result and taught us nothing.
+    # --- EXPERIMENT, not a setting. Remove once it has answered. -----------
+    #
+    # The hang is now pinned to vc4: with it loaded the board hangs at 29-57%,
+    # without it 0 of 20 boots hang, and v3d is cleared. What is not known is
+    # which part of vc4's bring-up stops making progress.
+    #
+    # drm.debug, NOT vc4.dyndbg. The obvious-looking knob is a near no-op here:
+    # vc4 has exactly ONE dynamic-debug callsite in the whole module, in audio
+    # setup, because DRM drivers do not use pr_debug. They use drm_dbg_*(),
+    # which routes through DRM's own bitmask. Checked in
+    # /sys/kernel/debug/dynamic_debug/control rather than assumed, after
+    # vc4.dyndbg=+p came back having enabled one line.
+    #
+    # 0x06 = DRIVER | KMS: vc4's own messages plus modesetting. CORE is left off
+    # as noise, and CONFIG_DRM_USE_DYNAMIC_DEBUG is unset in this kernel, so the
+    # bitmask is live rather than shadowed by dyndbg.
+    #
+    # Risk to watch: 115200 baud is about 11 KB/s, so this much printk both
+    # slows boot and changes timing, and it applies to every DRM driver rather
+    # than only vc4. If the hang rate collapses under it, the debug output is
+    # itself perturbing the race; narrow the mask before believing the result.
+    "drm.debug=0x06"
+
     "hung_task_panic=1"
     "softlockup_panic=1"
     "panic=10"
