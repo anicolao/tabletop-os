@@ -131,7 +131,55 @@
   #    does not schedule anything of ours early enough. cpufreq applies its
   #    default governor the moment it registers a policy, long before userspace,
   #    so the cap is in force for the whole coldplug storm.
-  boot.kernelParams = [ "cpufreq.default_governor=powersave" ];
+  boot.kernelParams = [
+    "cpufreq.default_governor=powersave"
+
+    # --- Make the boot hang say something ------------------------------------
+    #
+    # This board hangs partway through boot with a dead console: no panic, no
+    # oops, nothing in the journal. Ten deaths now sit between t=8.749s and
+    # t=9.228s, and since the installer profile came out it happens on
+    # essentially every boot, which finally makes it a reproducer rather than a
+    # flake.
+    #
+    # The open question is whether the CPU is dead or merely blocked, and these
+    # answer it without needing the console to work. If a task is stuck for 30s
+    # the hung-task detector panics, and panic=10 reboots ten seconds later — so
+    # a blocked-but-alive kernel comes back about 40s after the hang, where the
+    # hardware watchdog currently takes a rock-steady 85s. The recovery interval
+    # alone is the readout; nothing has to print for us to learn the answer.
+    #
+    # It may print anyway, which would be a bonus: panic() flushes the console
+    # with console_flush_on_panic(), which deliberately bypasses console_lock —
+    # the exact lock the leading theory says is stuck. If the fbcon handover is
+    # the culprit, this is the one code path that can still get a word out.
+    #
+    # CONFIG_DETECT_HUNG_TASK=y and CONFIG_SOFTLOCKUP_DETECTOR=y are both set in
+    # this kernel, and CONFIG_PANIC_TIMEOUT=0, so panic= is required rather than
+    # merely reinforcing a default. Checked in the kernel config, not assumed.
+    # hung_task_timeout_secs is deliberately NOT here. It looks like a boot
+    # parameter and is not one: the kernel registers hung_task_panic= via
+    # __setup, but the timeout exists only as a sysctl, defaulted from
+    # CONFIG_DEFAULT_HUNG_TASK_TIMEOUT. Passing it on the command line is
+    # silently ignored — verified on the running board, where /proc/cmdline
+    # showed hung_task_timeout_secs=30 while kernel.hung_task_timeout_secs
+    # still read 120.
+    #
+    # That mattered. At 120s the detector would have fired long after the
+    # hardware watchdog resets the board at ~85s, so the experiment would have
+    # produced a confident-looking null result and taught us nothing.
+    "hung_task_panic=1"
+    "softlockup_panic=1"
+    "panic=10"
+  ];
+
+  # The timeout the parameter above could not set.
+  #
+  # systemd-sysctl applies this at 7.46s and the earliest death observed is
+  # 8.482s, so it is in force before the hang — with about a second to spare.
+  # If a death is ever recorded earlier than ~7.5s, this stops being reliable
+  # and the value would have to move into the kernel config instead.
+  boot.kernel.sysctl."kernel.hung_task_timeout_secs" = 30;
 
   systemd.services.tabletop-cpu-uncap = {
     description = "Restore full CPU frequency once the kiosk is up";
