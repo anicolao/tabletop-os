@@ -202,6 +202,29 @@
     # slows boot and changes timing, and it applies to every DRM driver rather
     # than only vc4. If the hang rate collapses under it, the debug output is
     # itself perturbing the race; narrow the mask before believing the result.
+    # Take the fbdev client out, since it is the thing the evidence implicates.
+    #
+    # Nine hangs now share a byte-identical signature — 2 drm_client_hotplug
+    # calls, 32 vc4_atomic_check, 20 vc4_hvs_atomic_check, 0
+    # vc4_crtc_atomic_disable — against 0 of 14 healthy boots reaching two
+    # hotplugs.
+    #
+    # drm_kms_helper.poll=0 was tried first, on the theory that the periodic
+    # connector poll produced that second hotplug. It does not: with poll=N
+    # confirmed live in sysfs, four hangs still reached exactly 2 hotplugs and
+    # the same signature. So the event comes from a real HPD interrupt or from
+    # vc4's own drm_kms_helper_hotplug_event(), not from the poll timer. That
+    # theory is dead; the correlation survived it.
+    #
+    # drm_client_hotplug IS the fbdev client's handler. Removing the client
+    # means the handler cannot run whatever generates the event, which targets
+    # the implicated step rather than one guess at its trigger.
+    #
+    # Cost: no kernel framebuffer console on HDMI. cage talks DRM directly and
+    # does not need fbdev, so the kiosk should be unaffected — but that is a
+    # prediction to verify, not an assumption.
+    "drm_kms_helper.fbdev_emulation=0"
+
     "drm.debug=0x06"
 
     "hung_task_panic=1"
