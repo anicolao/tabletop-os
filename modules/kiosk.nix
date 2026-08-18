@@ -464,6 +464,45 @@ in
                 exit 0
               fi
 
+              # Wait for cage to actually be running before timing it.
+              #
+              # This unit is ordered only after the display gate, which finishes
+              # around 9.5s. cage is additionally gated on network-online.target
+              # and tabletop-wait-clock, and on a board with no RTC battery that
+              # second one is unbounded in practice: it waits for NTP to correct
+              # a clock that starts at 1970. Measured on a boot where the saved
+              # clock was two days stale:
+              #
+              #     9.50s  wait-display finished
+              #     9.51s  this unit starts, begins its 45s grace
+              #    55.25s  grace expires -> "restarting cage (attempt 1/8)"
+              #    58.46s  wait-clock finished
+              #    58.46s  cage-tty1 STARTS
+              #
+              # It restarted a service systemd had not launched yet, and then
+              # reported a restart it never performed. That is where the "one
+              # cage restart on every boot" came from, and why raising the grace
+              # from 15s to 45s did not fix it: the bug is where the grace
+              # starts, not how long it is.
+              #
+              # Deliberately polled rather than expressed as After=cage-tty1,
+              # which would deadlock — a unit ordered after the service it
+              # restarts cannot run the restart. Polling is also self-correcting
+              # if cage's own gating changes, which duplicating its dependency
+              # list here would not be.
+              startup=180
+              waited=0
+              while [ "$waited" -lt "$startup" ]; do
+                if systemctl is-active --quiet cage-tty1; then
+                  break
+                fi
+                sleep 1
+                waited=$((waited + 1))
+              done
+              if [ "$waited" -gt 0 ]; then
+                echo "cage started after ''${waited}s; supervising from here"
+              fi
+
               # Poll for a renderer; do not sample once and judge.
               #
               # The previous version slept a flat 15s and then decided. Its own
