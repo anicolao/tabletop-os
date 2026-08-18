@@ -366,72 +366,84 @@ been masking a VT-ownership conflict this whole time.
 
 </details>
 
-### Phase 2 — the hang, against the cleaned image
+### Phase 2 — the hang — **DONE as far as measurement can take it**
 
-Re-measure the baseline first: **20 cold boots on the Phase 1 image**, using
-`cycle.sh` (with the `grep -ac` fix). It is possible Phase 1 changes this on its
-own, since removing the getty removes one contender for the console.
+Ran 2026-08-18, ~150 cold boots. The plan's experiments A/B/C/D were largely
+superseded once instrumentation started working; what follows is what actually
+happened and where it stopped.
 
-Then, one variable at a time, 20 boots each:
+**Localised to vc4.** Four cells, 71 boots:
 
-**Experiment A — take the kernel console off the framebuffer.**
-Drop `console=tty1` from `boot.kernelParams`, keep `console=serial0`.
-*Predicts:* if the deadlock is in the fbcon handover, hangs stop, or a panic
-finally prints on serial.
-*Cost:* no kernel messages on the HDMI screen. Cosmetic.
+| vc4 | v3d | boots | hangs | rate |
+|:---:|:---:|---:|---:|---:|
+| out | out | 15 | 0 | 0% |
+| out | in | 5 | 0 | 0% |
+| in | out | 7 | 2 | 29% |
+| in | in | 44 | 25 | 57% |
 
-**Experiment B — remove plymouth.**
-`boot.plymouth.enable = false`, drop `splash`.
-*Predicts:* if the handover plymouth performs is the trigger, hangs stop.
-*Cost:* no boot splash.
+**Narrowed to the HPD interrupt path.** With `drm.debug=0x06` plus
+`boot.consoleLogLevel = 8`, 10 of 10 hangs ended on `drm_connector_helper_hpd_irq_event`,
+preceded by an EDID re-read and a connector-state change. An HPD interrupt
+arrives during bring-up, `detect()` re-reads EDID over the DDC I2C controller,
+and the SoC dies inside it.
 
-**Experiment C — capture what the console cannot report.**
-This is the one that converts the hang from silent to diagnosable, and it is
-worth doing **before** A and B if either of them comes back inconclusive:
+**Eight theories falsified by measurement.** Undervoltage/power, brcmfmac,
+console_lock deadlock, framebuffer handover, display output, blocked-but-alive
+kernel, connector polling, fbdev client atomic commit. The last two were
+proposed fixes of mine, deployed and rejected the same afternoon. Details in
+the memory note `rpi5-boot-hangs-unsolved` and in commits `17669a4`, `0296b74`,
+`29b2985`, `698eb52`.
 
-- Configure **ramoops/pstore** so a panic or oops survives the reset. The
-  system already has `systemd-pstore.service`; the RPi5 needs a `ramoops`
-  reserved-memory node in the device tree or `ramoops.mem_address=` parameters.
-- Add `boot.kernelParams`: `hung_task_panic=1`, `hung_task_timeout_secs=30`,
-  `softlockup_panic=1`, `panic=10`.
-  *Predicts:* if the CPU is alive but blocked on a lock, the hung-task detector
-  fires at 30s and — with pstore — we get the blocked task and its stack after
-  the reboot, which names the lock and ends the guessing.
+**The methodological finding worth keeping:** death *time* is not the signal. It
+moved 8.9s → 9.3s → 22.2s across configurations while always staying a tight
+cluster, which repeatedly suggested "time-locked" and was repeatedly wrong. What
+is stable is the **progress count**. Five hangs once shared a byte-identical
+signature `(2, 32, 20, 0)` while their death times spread over two seconds.
 
-**Experiment D — only if A/B/C all come back clean.**
-Boot headless (HDMI unplugged) for 20 cycles. If hangs vanish with no display,
-the fault is in display bring-up regardless of which layer. If they persist with
-no display at all, the console theory is dead and the next suspect is SDIO/mmc
-contention during coldplug.
+**Four settings that were accepted and did nothing** — verify the effect, never
+that the setting took: `hung_task_timeout_secs=` (sysctl only, not a boot
+param), `systemd-udev-settle.service` (does not exist here), `vc4.dyndbg=+p`
+(one callsite; DRM uses `drm_dbg_*()`), and `drm.debug` without
+`consoleLogLevel = 8` (journal only, and the journal dies with the board).
 
-### Phase 3 — finish the kiosk work
+### Phase 3 — what is left
 
-Deferred tonight, still outstanding:
+1. **File upstream** against nixos-raspberrypi / vc4. Nothing in this repo
+   touches HPD handling. There is a 40% reproducer, a named function, and 20MB
+   of clean serial captures in `~/projects/games/tabletop/rpi5-hang-data/`.
+2. **Try `video=HDMI-A-1:2560x1440@70e`** — force the mode so `detect()` has
+   less influence. The last cheap local mitigation in sight.
+3. **Consider shipping on the watchdog.** It has recovered 40+ hangs without a
+   single failure. A tabletop that occasionally takes an extra 85s is a working
+   appliance.
+4. **Revisit "boot-time power smoothing" in `hosts/rpi5.nix`.** The
+   `cpufreq.default_governor=powersave` cap, the Bluetooth blacklist and the Tor
+   removal all rest on undervoltage measurements that no surviving log supports
+   — `in0_lcrit_alarm` reads 0 and no captured log contains an undervoltage
+   line. The cap costs real boot time and the actual cause is now known.
+5. **Remove the experiment scaffolding** currently deployed:
+   `drm.debug=0x06`, `boot.consoleLogLevel = 8`, `fbdev_emulation=0`, and the
+   C0 panic settings. `fbdev_emulation=0` is kept only as a cleaner reproducer;
+   it is not a fix and the kiosk does not need it either way.
 
-- Confirm the cage watchdog polling fix actually removes the per-boot restart
-  (it is deployed but was never measured against a clean image).
-- The panel modesets at 2560x1440@70Hz while `modes` also lists 3840x2160 —
-  worth checking that this is the intended mode for this table.
-- `tabletop-wait-clock` gates the kiosk on time sync because the Pi has **no RTC
-  battery** (`rpi-rtc: setting system clock to 1970-01-01`). This is correct, but
-  it means ~18s of every boot is waiting for the network. If that matters, an
-  RTC battery is a hardware fix worth more than any config change.
-
-### Method rules for tomorrow
+### Method rules — unchanged and still earning their place
 
 1. `grep -a` on any captured log, always.
 2. Validate every counter against the raw data once before trusting it.
 3. No fix claimed under 20 consecutive clean boots.
 4. Change one variable per run.
 5. Start the serial capture before the first reboot, and leave it running.
+6. **Verify a setting had its intended effect on the target, not that it was
+   accepted.** Four inert knobs in one day.
 
 ---
 
 ## 7. Open questions
 
-- Does `nixos-raspberrypi` offer a non-installer image path, or must the
-  installer profile be neutralised in place?
-- Is the 2.4GHz failure a property of this room, or of the Pi 5's radio next to
-  a 2560x1440 HDMI link? Untested, and it does not block anything — 5GHz works —
-  but it would be good to know before this image goes on a second board.
-- Why did one watchdog recovery take 4m34s when others took ~85s?
+- Why does an HPD interrupt during bring-up kill all cores rather than erroring?
+  Needs someone who can read vc4's DDC/I2C and PHY paths.
+- Is the 2.4GHz association failure a property of this room or of the Pi 5's
+  radio beside a high-pixel-clock HDMI link? Unblocked either way — 5GHz works.
+- The RPi5 has no RTC battery, so wall-clock timestamps within a boot are
+  unreliable until timesync. Only `journalctl -o short-monotonic` and
+  `/proc/uptime` can be trusted on this board.
