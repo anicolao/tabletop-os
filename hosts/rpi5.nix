@@ -131,8 +131,16 @@
     # Cost while this is in place: no display at all, so the kiosk cannot start
     # and tabletop-wait-display will time out on every boot. That is expected
     # and does not affect the measurement, which only counts kernel starts.
+    # SPLIT, pass 2 of 2: vc4 out, v3d IN.
+    #
+    # Pass 1 loaded vc4 with v3d out: 7 boots, 2 hangs, 29%. So vc4 alone
+    # reproduces the fault and v3d is not required.
+    #
+    # This is the complement, and it is not a formality. If v3d alone ALSO hangs,
+    # the conclusion is not "vc4 is buggy" but "any DRM driver bring-up in this
+    # window is fatal" — a different bug with a different fix. Only this pass
+    # separates those two.
     "vc4"
-    "v3d"
   ];
 
   # brcmfmac is deliberately NOT blacklisted-and-deferred here, though it was
