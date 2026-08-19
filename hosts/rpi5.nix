@@ -100,6 +100,15 @@
   #    Pi 5's Bluetooth hangs off SDIO, so btsdio is what pulls the stack in.
   #    Blacklisting the other three alone left "bluetooth 966656 1 btsdio" in
   #    lsmod — the reduction had simply not happened.
+  # Kernel version is NOT the variable, and 6.12.47 was tested to prove it.
+  #
+  # working.img — months of daily use, no hangs — runs 6.12.47 +rpt-rpi-2712.
+  # Pinning this image to the identical nixos-raspberrypi release
+  # (linux_rpi5_v6_12_47, stable_20250916) still hung: 6 boots, 3 hangs, 50%,
+  # same signature. So the "regression between 6.12 and 6.18" theory is dead.
+  # Left on the default kernel.
+
+
   # No boot.kernelPatches here, and the repo's rule against them stands.
   #
   # One was tried: patches/vc4-hdmi-single-hotplug.patch, removing a genuine
@@ -159,7 +168,28 @@
   boot.consoleLogLevel = 8;
 
   boot.kernelParams = [
-    "cpufreq.default_governor=powersave"
+    # cpufreq.default_governor=powersave REMOVED — this is the experiment.
+    #
+    # It pinned all four A76 cores to 1.5GHz for the whole of boot, which
+    # perturbs timing in every driver. Two things make it the best remaining
+    # suspect:
+    #
+    #   - It is one of only a handful of things this image adds to the kernel
+    #     command line that the known-good card does not have. (The long list
+    #     of coherent_pool/numa/vc_mem parameters that looked like differences
+    #     are prepended by the Pi firmware on any card, including the working
+    #     one — comparing our runtime /proc/cmdline against their cmdline.txt
+    #     file was an invalid comparison on my part.)
+    #   - It arrived in commit 106add8 at 21:15 on 08-15, the same evening the
+    #     boot hangs started being reported. That commit was blamed once before
+    #     for its iw-from-udev rule; the rule is long gone and the hangs
+    #     continued, but the governor cap from the same commit had never been
+    #     tested.
+    #
+    # It also rests on undervoltage measurements that cannot be reproduced:
+    # in0_lcrit_alarm reads 0 and no surviving log contains an undervoltage
+    # line. If removing it does not help, the rest of the "boot-time power
+    # smoothing" section below should go too, on the same grounds.
 
     # --- Make the boot hang say something ------------------------------------
     #
