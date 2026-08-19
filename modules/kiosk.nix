@@ -636,8 +636,29 @@ in
             runtimeInputs = with pkgs; [
               coreutils
               systemd
+              iproute2
+              gnugrep
             ];
             text = ''
+              # With no network there is nothing to synchronise against, so do
+              # not spend the timeout finding that out.
+              #
+              # Measured on a freshly flashed board with no credentials: this
+              # gate burned its full 60s waiting for NTP that could not arrive,
+              # and it is ordered before cage — so it was 60 of the ~88 seconds
+              # between power-on and the screen showing anything. On a device
+              # whose whole recovery story is "show the WiFi setup page", making
+              # the user wait a minute to be told there is no WiFi is exactly
+              # backwards.
+              #
+              # Deliberately a route check rather than a ping: it is instant,
+              # needs no reachable host, and answers the only question that
+              # matters — is there any path off this box at all.
+              if ! ip route show default | grep -q .; then
+                echo "no default route; not waiting for a clock that cannot sync"
+                exit 0
+              fi
+
               # Kick timesyncd before waiting on it.
               #
               # It is ordered early in boot, so its first polls go out before
