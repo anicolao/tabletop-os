@@ -366,84 +366,73 @@ been masking a VT-ownership conflict this whole time.
 
 </details>
 
-### Phase 2 — the hang — **DONE as far as measurement can take it**
+### Phase 2 — the hang — **SOLVED 2026-08-18**
 
-Ran 2026-08-18, ~150 cold boots. The plan's experiments A/B/C/D were largely
-superseded once instrumentation started working; what follows is what actually
-happened and where it stopped.
+**Cause: plymouth**, racing vc4's connector bring-up during early boot.
+`boot.plymouth.enable = false` took the rate from 39-57% to **0 hangs in 20
+boots** (p=0.00005), and 19 of those boots reached the signature that had
+predicted a hang 23 times out of 23 — the discriminator inverted, which is what
+a real cause looks like.
 
-**Localised to vc4.** Four cells, 71 boots:
+Full post-mortem, the eleven things it was not, and every methodological failure
+along the way: `docs/VC4-BOOT-HANG.md`.
 
-| vc4 | v3d | boots | hangs | rate |
-|:---:|:---:|---:|---:|---:|
-| out | out | 15 | 0 | 0% |
-| out | in | 5 | 0 | 0% |
-| in | out | 7 | 2 | 29% |
-| in | in | 44 | 25 | 57% |
+### Phase 3 — production readiness — **DONE**
 
-**Narrowed to the HPD interrupt path.** With `drm.debug=0x06` plus
-`boot.consoleLogLevel = 8`, 10 of 10 hangs ended on `drm_connector_helper_hpd_irq_event`,
-preceded by an EDID re-read and a connector-state change. An HPD interrupt
-arrives during bring-up, `detect()` re-reads EDID over the DDC I2C controller,
-and the SoC dies inside it.
+Removed with the fix:
 
-**Eight theories falsified by measurement.** Undervoltage/power, brcmfmac,
-console_lock deadlock, framebuffer handover, display output, blocked-but-alive
-kernel, connector polling, fbdev client atomic commit. The last two were
-proposed fixes of mine, deployed and rejected the same afternoon. Details in
-the memory note `rpi5-boot-hangs-unsolved` and in commits `17669a4`, `0296b74`,
-`29b2985`, `698eb52`.
+- all debug instrumentation (`drm.debug`, `consoleLogLevel = 8`,
+  `hung_task_panic`, `softlockup_panic`, `panic=10`)
+- `tabletop-cpu-uncap.service`, dead once the governor cap went
+- the "boot-time power smoothing" rationale, which rested on undervoltage
+  measurements that cannot be reproduced (`in0_lcrit_alarm` reads 0; no
+  surviving log contains an undervoltage line). The Bluetooth blacklist stays,
+  argued on its own merits.
 
-**The methodological finding worth keeping:** death *time* is not the signal. It
-moved 8.9s → 9.3s → 22.2s across configurations while always staying a tight
-cluster, which repeatedly suggested "time-locked" and was repeatedly wrong. What
-is stable is the **progress count**. Five hangs once shared a byte-identical
-signature `(2, 32, 20, 0)` while their death times spread over two seconds.
+Fixed and verified across ~200 boots this session:
 
-**Four settings that were accepted and did nothing** — verify the effect, never
-that the setting took: `hung_task_timeout_secs=` (sysctl only, not a boot
-param), `systemd-udev-settle.service` (does not exist here), `vc4.dyndbg=+p`
-(one callsite; DRM uses `drm_dbg_*()`), and `drm.debug` without
-`consoleLogLevel = 8` (journal only, and the journal dies with the board).
+| | before | after |
+|---|---|---|
+| boot | 1m19s | **23-33s** |
+| boot hangs | 39-57% | **0** |
+| WiFi handshake failures | 3 per boot | **0** |
+| illegal-channel scans | 40 per boot | **0** |
+| spurious cage restarts | 1-3 per boot | **0** |
+| root password on screen | yes | **none set** |
 
-### Phase 3 — what is left
+### What is left
 
-1. **File upstream** against nixos-raspberrypi / vc4. Nothing in this repo
-   touches HPD handling. There is a 40% reproducer, a named function, and 20MB
-   of clean serial captures in `~/projects/games/tabletop/rpi5-hang-data/`.
-2. **Try `video=HDMI-A-1:2560x1440@70e`** — force the mode so `detect()` has
-   less influence. The last cheap local mitigation in sight.
-3. **Consider shipping on the watchdog.** It has recovered 40+ hangs without a
-   single failure. A tabletop that occasionally takes an extra 85s is a working
-   appliance.
-4. **Revisit "boot-time power smoothing" in `hosts/rpi5.nix`.** The
-   `cpufreq.default_governor=powersave` cap, the Bluetooth blacklist and the Tor
-   removal all rest on undervoltage measurements that no surviving log supports
-   — `in0_lcrit_alarm` reads 0 and no captured log contains an undervoltage
-   line. The cap costs real boot time and the actual cause is now known.
-5. **Remove the experiment scaffolding** currently deployed:
-   `drm.debug=0x06`, `boot.consoleLogLevel = 8`, `fbdev_emulation=0`, and the
-   C0 panic settings. `fbdev_emulation=0` is kept only as a cleaner reproducer;
-   it is not a fix and the kiosk does not need it either way.
+1. **Confirm on a freshly flashed card.** Everything was `nixos-rebuild switch`;
+   a burn has not been tested end to end. `nix run .#burn-rpi5`.
+2. **Decide on `panic=10`.** Arguably right for an appliance — a panic reboots
+   rather than sitting dead. Left out because it arrived as instrumentation, not
+   as a decision.
+3. **Console appearance.** With plymouth gone and `loglevel` back to the stock
+   7, the panel shows some boot text before cage starts. `loglevel=3` would
+   quiet it without reintroducing plymouth.
+4. **Consider reporting the vc4 divergence upstream.** `vc4_hdmi_handle_hotplug`
+   calls `drm_atomic_helper_connector_hdmi_hotplug()` twice where upstream calls
+   it once, doing two EDID reads and two CEC updates per hotplug on a path
+   documented as running without its mutex. Patch kept, unapplied, at
+   `patches/vc4-hdmi-single-hotplug.patch`. Real, but not our bug.
+5. **The RPi5 has no RTC battery.** Wall-clock timestamps inside a boot are
+   unreliable until timesync; only `journalctl -o short-monotonic` and
+   `/proc/uptime` can be trusted. An RTC battery is a hardware fix worth more
+   than any config change.
+6. **Unexplained:** plymouth shipped 08-08 but hangs began 08-15. Something else
+   changed then and nobody knows what.
 
-### Method rules — unchanged and still earning their place
+### Method rules — these earned their place
 
 1. `grep -a` on any captured log, always.
-2. Validate every counter against the raw data once before trusting it.
+2. Validate every counter against raw data before trusting it.
 3. No fix claimed under 20 consecutive clean boots.
 4. Change one variable per run.
-5. Start the serial capture before the first reboot, and leave it running.
-6. **Verify a setting had its intended effect on the target, not that it was
-   accepted.** Four inert knobs in one day.
-
----
-
-## 7. Open questions
-
-- Why does an HPD interrupt during bring-up kill all cores rather than erroring?
-  Needs someone who can read vc4's DDC/I2C and PHY paths.
-- Is the 2.4GHz association failure a property of this room or of the Pi 5's
-  radio beside a high-pixel-clock HDMI link? Unblocked either way — 5GHz works.
-- The RPi5 has no RTC battery, so wall-clock timestamps within a boot are
-  unreliable until timesync. Only `journalctl -o short-monotonic` and
-  `/proc/uptime` can be trusted on this board.
+5. Start the serial capture before the first reboot.
+6. Verify a setting had its **effect on the target**, not that it was accepted.
+   Four inert knobs in one day.
+7. A perfect correlate is not a cause. `>=2 hotplug events` predicted hangs 23
+   times out of 23 and was still the passenger.
+8. When comparing against a known-good reference, compare like with like — a
+   runtime `/proc/cmdline` against a `cmdline.txt` file invented a dozen
+   differences that were all firmware-supplied on both.
