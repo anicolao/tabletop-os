@@ -71,27 +71,25 @@
   # image build time.
   boot.supportedFilesystems.zfs = lib.mkForce false;
 
-  # --- Boot-time power smoothing --------------------------------------------
+  # --- Bluetooth is off, and the story behind it was wrong ------------------
   #
-  # This board runs from a battery that drove the official Raspberry Pi image
-  # for months without trouble, so the supply is not the variable — this image
-  # is. systemd coldplugs every device at once around 8.4s, while four
-  # Cortex-A76 cores are free to run at 2.4GHz and the WiFi and Bluetooth
-  # firmware loads land in the same window.
+  # This was a "boot-time power smoothing" section, built on a claim that six
+  # boots each logged "hwmon rpi_volt: Undervoltage detected!" at 10.7-11.8s.
+  # That claim cannot be reproduced. in0_lcrit_alarm — the latched undervoltage
+  # flag — reads 0, and no log still in existence contains an undervoltage
+  # line, including rpi-boot-bat.log which is explicitly a battery boot. The
+  # boots it referred to predate anything retained, so it can be neither
+  # confirmed nor refuted; treat it as unsupported.
   #
-  # Measured across six boots: "hwmon rpi_volt: Undervoltage detected!" at
-  # 10.7-11.8s on every single one, and three consecutive boots stopped logging
-  # at exactly 14s with the compositor never starting. A timeout leaves logs
-  # behind; this leaves nothing, which is what a brownout looks like.
+  # Everything it justified has since been tested and cleared of causing the
+  # boot hang: the transmit power cap (removed), the CPU governor cap (removed,
+  # 33 boots at 39% with it gone), and Tor (gone with the installer profile).
+  # The hang was plymouth — see docs/VC4-BOOT-HANG.md.
   #
-  # Three reductions, cheapest first.
-
-  # 1. No Tor — nothing to do here any more. Tor and hidden-ssh-announce came
-  #    from the installer profile, which is gone. Disabling them by hand was
-  #    also never as complete as it looked: it stopped the daemon and the
-  #    announce unit, but not the status screen that printed "Onion address:
-  #    Waiting for tor network to be ready..." on tty1 forever, precisely
-  #    *because* Tor would now never be ready.
+  # What remains is the Bluetooth blacklist, kept on its own merits rather than
+  # the power story: nothing on this device uses Bluetooth, and not loading a
+  # radio stack that shares a die and an SDIO bus with the WiFi is a reasonable
+  # default for an appliance. It is not a fix for anything.
 
   # 2. No Bluetooth. Nothing here uses it, and the BCM4345C0 firmware patch runs
   #    from 9.8s to 10.5s — immediately before the undervoltage, on the same
@@ -175,18 +173,6 @@
   #    does not schedule anything of ours early enough. cpufreq applies its
   #    default governor the moment it registers a policy, long before userspace,
   #    so the cap is in force for the whole coldplug storm.
-  # 8, not the default 7, and the experiment above is useless without it.
-  # drm_dbg() prints at KERN_DEBUG (7), and printk reaches the console only when
-  # level < console_loglevel — so at 7 every debug line goes to journald and
-  # none goes to serial. The journal cannot help with this fault: the board dies
-  # before it is flushed, and serial is the only channel that survives a hang.
-  # Caught by reading the serial capture of a real hang and finding no
-  # timestamped [drm:...] lines in it at all.
-  #
-  # Set through this option rather than a kernel parameter because NixOS appends
-  # its own loglevel= after boot.kernelParams, and the last one on the command
-  # line wins.
-  boot.consoleLogLevel = 8;
 
   boot.kernelParams = [
     # cpufreq.default_governor=powersave REMOVED — this is the experiment.
@@ -246,45 +232,16 @@
     # That mattered. At 120s the detector would have fired long after the
     # hardware watchdog resets the board at ~85s, so the experiment would have
     # produced a confident-looking null result and taught us nothing.
-    # --- EXPERIMENT, not a setting. Remove once it has answered. -----------
+    # No debug instrumentation here. drm.debug=0x06, boot.consoleLogLevel = 8,
+    # hung_task_panic, softlockup_panic and panic=10 were all used to find the
+    # boot hang and are removed now that it is fixed. docs/VC4-BOOT-HANG.md
+    # records how to put them back if this ever needs re-opening — in
+    # particular that drm.debug is useless without consoleLogLevel = 8, because
+    # drm_dbg() prints at KERN_DEBUG and the journal dies with the board.
     #
-    # The hang is now pinned to vc4: with it loaded the board hangs at 29-57%,
-    # without it 0 of 20 boots hang, and v3d is cleared. What is not known is
-    # which part of vc4's bring-up stops making progress.
-    #
-    # drm.debug, NOT vc4.dyndbg. The obvious-looking knob is a near no-op here:
-    # vc4 has exactly ONE dynamic-debug callsite in the whole module, in audio
-    # setup, because DRM drivers do not use pr_debug. They use drm_dbg_*(),
-    # which routes through DRM's own bitmask. Checked in
-    # /sys/kernel/debug/dynamic_debug/control rather than assumed, after
-    # vc4.dyndbg=+p came back having enabled one line.
-    #
-    # 0x06 = DRIVER | KMS: vc4's own messages plus modesetting. CORE is left off
-    # as noise, and CONFIG_DRM_USE_DYNAMIC_DEBUG is unset in this kernel, so the
-    # bitmask is live rather than shadowed by dyndbg.
-    #
-    # Risk to watch: 115200 baud is about 11 KB/s, so this much printk both
-    # slows boot and changes timing, and it applies to every DRM driver rather
-    # than only vc4. If the hang rate collapses under it, the debug output is
-    # itself perturbing the race; narrow the mask before believing the result.
-    # vc4.force_hotplug=1 was tried here and removed. It is not a fix, and
-    # leaving it in would confound the kernel-patch test below by suppressing
-    # hotplug events on its own: 23 boots, 8 hangs (35%), and every surviving
-    # boot got ZERO hotplug events where healthy boots normally see one. It
-    # overrides the status check inside detect_ctx(); it does not stop the
-    # interrupt that calls it, so when a real HPD lands the doubled EDID read
-    # runs and the board dies anyway.
-    #
-    # Same failure mode as drm_kms_helper.poll=0 and fbdev_emulation=0: all
-    # three removed a *route* to the handler — the timer, one client, the
-    # status check — and none removed the doubled work inside it. That is why
-    # the fix has to be in the handler.
-
-    "drm.debug=0x06"
-
-    "hung_task_panic=1"
-    "softlockup_panic=1"
-    "panic=10"
+    # panic=10 is arguably worth having on an appliance regardless, so a panic
+    # reboots instead of sitting there. Left out because it arrived as
+    # instrumentation, not as a decision; re-add it deliberately if wanted.
   ];
 
   # The timeout the parameter above could not set.
@@ -295,37 +252,10 @@
   # and the value would have to move into the kernel config instead.
   boot.kernel.sysctl."kernel.hung_task_timeout_secs" = 30;
 
-  systemd.services.tabletop-cpu-uncap = {
-    description = "Restore full CPU frequency once the kiosk is up";
-    wantedBy = [ "graphical.target" ];
-    after = [ "cage-tty1.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = lib.getExe (
-        pkgs.writeShellApplication {
-          name = "tabletop-cpu-uncap";
-          runtimeInputs = [ pkgs.coreutils ];
-          text = ''
-            # The browser is the thing that wants the cores, and by now it has
-            # them. Hand the frequency back so the launcher is not permanently
-            # slow — powersave pins every core to the minimum, which is fine for
-            # bringing hardware up and not fine for compositing at 4K.
-            for p in /sys/devices/system/cpu/cpufreq/policy*; do
-              if [ -w "$p/scaling_governor" ]; then
-                echo schedutil > "$p/scaling_governor" || true
-              fi
-              max=$(cat "$p/cpuinfo_max_freq" 2>/dev/null || echo "")
-              if [ -n "$max" ] && [ -w "$p/scaling_max_freq" ]; then
-                echo "$max" > "$p/scaling_max_freq" || true
-              fi
-            done
-            echo "restored: governor=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null) max=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq 2>/dev/null) kHz"
-          '';
-        }
-      );
-    };
-  };
+  # tabletop-cpu-uncap is gone with the governor cap it existed to undo. It
+  # restored schedutil once the kiosk was up; with nothing capping the governor
+  # there is nothing to restore.
+
 
   # --- Recover from the boot hang without a human ----------------------------
   #
