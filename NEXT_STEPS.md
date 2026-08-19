@@ -122,7 +122,7 @@ services.openssh.settings.PermitRootLogin = "yes";
 repo" and sets `users.mutableUsers = false`. That claim is false in the shipped
 image: the installer profile sets a root password behind it, and prints it on
 the tabletop's screen in a room where anyone can read it
-(`panoramic-emptier-untried`, in your photo). `hosts/rpi5.nix` does force
+(the value was legible in a photograph of the panel). `hosts/rpi5.nix` does force
 `PermitRootLogin = "prohibit-password"`, so remote password login is blocked —
 but console and serial login as root are not, and the serial capture shows
 `root@tabletop-rpi5` prompts from exactly this autologin.
