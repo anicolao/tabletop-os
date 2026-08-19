@@ -84,6 +84,25 @@ in
       '';
     };
 
+    fallbackUrl = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "http://127.0.0.1:8080/";
+      description = ''
+        Page to show when the device has no network, or null to always load
+        `url`.
+
+        The launcher lives on the internet, so with no connectivity the kiosk
+        would otherwise sit on an error page with no way out — and this device
+        has no keyboard. Something local has to be shown instead.
+
+        Deliberately a plain URL rather than anything that knows about WiFi:
+        modules/ carries no board conditionals, and the Orange Pi has no radio
+        at all. modules/wifi-setup.nix is what sets this, on the hosts where it
+        makes sense.
+      '';
+    };
+
     user = lib.mkOption {
       type = lib.types.str;
       default = "kiosk";
@@ -275,9 +294,22 @@ in
       program = "${pkgs.writeShellScript "tabletop-kiosk-start" ''
         # Give cage time to finish binding its output before connecting.
         sleep ${toString cfg.clientStartDelaySeconds}
-        exec ${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} ${
-          lib.concatMapStringsSep " " lib.escapeShellArg ([ cfg.url ] ++ cfg.diagnosticTabs)
-        }
+
+        url=${lib.escapeShellArg cfg.url}
+        ${lib.optionalString (cfg.fallbackUrl != null) ''
+          # No default route means the launcher cannot load, so show the local
+          # fallback instead of an error page nobody can dismiss without a
+          # keyboard. Checked here rather than with a systemd condition because
+          # it has to be the state at the moment the browser starts, not at the
+          # moment some unit was ordered.
+          if ! ${pkgs.iproute2}/bin/ip route show default | ${pkgs.gnugrep}/bin/grep -q .; then
+            echo "kiosk: no default route; showing ${cfg.fallbackUrl}" >&2
+            url=${lib.escapeShellArg cfg.fallbackUrl}
+          fi
+        ''}
+
+        exec ${pkgs.chromium}/bin/chromium ${lib.concatStringsSep " " chromiumFlags} \
+          "$url" ${lib.concatMapStringsSep " " lib.escapeShellArg cfg.diagnosticTabs}
       ''}";
       environment = {
         # NOTE: WLR_DRM_NO_ATOMIC was tried here and made things strictly

@@ -49,6 +49,7 @@
         ./modules/touchscreen.nix
         ./modules/status.nix
         ./modules/wifi.nix
+        ./modules/wifi-setup.nix
       ];
 
       mkSystem =
