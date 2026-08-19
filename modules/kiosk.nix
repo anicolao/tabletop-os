@@ -301,7 +301,10 @@ in
     boot.kernelParams = [
       "quiet"
       "loglevel=3"
-    ];
+    ]
+    # `splash` only means anything with plymouth, and passing it without
+    # plymouth leaves a parameter that lies about what the boot does.
+    ++ lib.optional config.boot.plymouth.enable "splash";
 
     # Wait for a display to exist before starting the compositor.
     #

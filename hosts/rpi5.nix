@@ -100,6 +100,27 @@
   #    Pi 5's Bluetooth hangs off SDIO, so btsdio is what pulls the stack in.
   #    Blacklisting the other three alone left "bluetooth 966656 1 btsdio" in
   #    lsmod — the reduction had simply not happened.
+  # --- EXPERIMENT: no plymouth ----------------------------------------------
+  #
+  # The last item from the original Phase 2 plan that was never actually run.
+  # Plymouth performs its own KMS/framebuffer handover during boot, in the same
+  # window where vc4 is binding, and it is a genuine difference from the
+  # known-good card's boot: that one passes plymouth.ignore-serial-consoles and
+  # boots a far simpler, more serialised userspace, while this image runs the
+  # full splash.
+  #
+  # `splash` comes off the kernel command line with it — plymouth without the
+  # parameter is half a test.
+  #
+  # Ten hypotheses have now been eliminated by measurement (kernel version,
+  # display output, brcmfmac, console_lock deadlock, framebuffer handover,
+  # connector polling, fbdev emulation, the HPD IRQ handler, the duplicated
+  # helper call, the governor cap). If this one fails too, the difference from
+  # the working card is our userspace boot as a whole rather than any single
+  # setting, and the next move is to boot working.img on this hardware and look
+  # for a workaround we have not found.
+  boot.plymouth.enable = lib.mkForce false;
+
   # Kernel version is NOT the variable, and 6.12.47 was tested to prove it.
   #
   # working.img — months of daily use, no hangs — runs 6.12.47 +rpt-rpi-2712.
